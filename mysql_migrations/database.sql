@@ -31,7 +31,6 @@ CREATE TABLE internships (
     company_name TEXT,                         -- Название компании
     salary_from DECIMAL(10,2),                 -- Минимальная зарплата (10 цифр, 2 после запятой)
     salary_to DECIMAL(10,2),                   -- Максимальная зарплата
-    currency VARCHAR(10),                      -- Валюта зарплаты (RUB, USD и т.д.)
     duration_text TEXT,                        -- Длительность стажировки в текстовом формате
     source_id INT NOT NULL,                    -- ID источника (внешний ключ)
     link TEXT NOT NULL,                        -- Ссылка на вакансию

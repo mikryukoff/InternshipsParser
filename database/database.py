@@ -147,3 +147,6 @@ class Internships(ConnectTable):
 
     async def select_internship_data(self):
         pass
+
+    async def update_internships(self, source_name: str) -> None:
+        pass
