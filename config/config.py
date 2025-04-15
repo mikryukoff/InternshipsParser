@@ -8,7 +8,7 @@ from environs import Env
 @dataclass
 class Database:
     host: str        # Хост БД
-    user: str        #
+    user: str        # Имя пользователя БД
     password: str    # Пароль от БД
     db_name: str     # Название БД
 

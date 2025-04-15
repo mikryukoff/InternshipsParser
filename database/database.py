@@ -145,8 +145,33 @@ class Internships(ConnectTable):
                 """
                 await cursor.execute(insert_internship)
 
-    async def select_internship_data(self):
-        pass
+    async def select_internship_data(self, **kwargs) -> tuple:
+        """
+        Получает данные о стажировке по фильтрам, описанным в query.
+
+        Аргументы:
+            kwargs: Возможные фильтры:
+                profession: (str): Название профессии.
+                company_name: (str): Название компании, ищущей стажера.
+                salary_from: (int): Минимальная зарплата.
+                salary_to: (int): Максимальная зарплата.
+                duration: (str): Длительность стажировки.
+                source_name (str): Название источника.
+
+        Возвращает:
+            tuple: Кортеж с данными по фильтру query.
+        """
+        async with self.connection_pool.acquire() as connection:
+            async with connection.cursor() as cursor:
+                query = "SELECT * FROM internships WHERE 1=1"
+
+                for key, value in kwargs:
+                    query += f" AND {key} = :{value}"
+
+                await cursor.execute(query)
+                row = await cursor.fetchone()
+
+        return row
 
     async def update_internships(self, source_name: str) -> None:
         pass
