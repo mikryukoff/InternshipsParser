@@ -17,29 +17,6 @@ StartMenu = ReplyKeyboardMarkup(
     input_field_placeholder="Выберите действие"
 )
 
-SitesMenu = ReplyKeyboardMarkup(
-    keyboard=[
-        [
-            KeyboardButton(text=LEXICON_COMMANDS["hh"]),
-            KeyboardButton(text=LEXICON_COMMANDS["trudvsem"])
-        ],
-        [
-            KeyboardButton(text=LEXICON_COMMANDS["superjob"]),
-            KeyboardButton(text=LEXICON_COMMANDS["rabota"])
-        ],
-        [
-            KeyboardButton(text=LEXICON_COMMANDS["all_sites"]),
-            KeyboardButton(text=LEXICON_COMMANDS["next"])
-
-        ],
-        [
-            KeyboardButton(text=LEXICON_COMMANDS["back"])
-        ]
-    ],
-    resize_keyboard=True,
-    input_field_placeholder="Выберите сайт для поиска"
-)
-
 FiltersMenu = ReplyKeyboardMarkup(
     keyboard=[
         [
@@ -138,3 +115,30 @@ DurationMenu = ReplyKeyboardMarkup(
     resize_keyboard=True,
     input_field_placeholder="Выберите длительность"
 )
+
+
+# Функция для генерации клавиатуры с сайтами
+def sites_keyboard() -> ReplyKeyboardMarkup:
+    "Функция, генерирующая клавиатуру со списком сайтов."
+    keyboard = []
+    row_count = len(LEXICON_COMMANDS["sites"]) // 2
+    row_count += len(LEXICON_COMMANDS["sites"]) % 2
+
+    step = 0
+    for _ in range(row_count):
+        if step + 2 <= len(LEXICON_COMMANDS["sites"]):
+            row = [KeyboardButton(text=LEXICON_COMMANDS["sites"][j]) for j in range(step, step + 2)]
+        else:
+            row = [KeyboardButton(text=LEXICON_COMMANDS["sites"][-1])]
+        keyboard.append(row)
+        step += 2
+
+    keyboard.append([KeyboardButton(text=LEXICON_COMMANDS["all_sites"]), KeyboardButton(text=LEXICON_COMMANDS["next"])])
+    keyboard.append([KeyboardButton(text=LEXICON_COMMANDS["back"])])
+
+    return ReplyKeyboardMarkup(
+        keyboard=keyboard,                         # Клавиатура с кнопками
+        resize_keyboard=True,                      # Автоматическая настройка размера клавиатуры
+        one_time_keyboard=False,                   # Клавиатура не скрывается после использования
+        input_field_placeholder="Список сайтов"    # Подсказка для поля ввода
+    )

@@ -18,7 +18,7 @@ class Database:
 class WebDriver:
     options: list        # Список опций для настройки WebDriver
     capability: dict     # Возможности WebDriver (capabilities)
-    selenoid_url: str    # URL для подключения к Selenoid
+    # selenoid_url: str    # URL для подключения к Selenoid
 
 
 # Конфиг для настройки Telegram-бота
@@ -68,7 +68,7 @@ def load_config(path: str | None = None) -> Config:
         webdriver=WebDriver(
             options=options,                    # Установка опций WebDriver
             capability=capability,              # Установка возможностей WebDriver
-            selenoid_url=env("SELENOID_URL")    # URL для подключения к Selenoid
+            # selenoid_url=env("SELENOID_URL")    # URL для подключения к Selenoid
         ),
         tg_bot=TgBot(token=env("BOT_TOKEN")),               # Токен Telegram-бота
         database=Database(

@@ -5,6 +5,8 @@ from typing import Dict, Any
 
 from lexicon import LEXICON, LEXICON_COMMANDS
 import keyboards.menu_kb as kb
+from keyboards import sites_keyboard
+from filters import AnswerFilter
 
 
 # Инициализация роутера
@@ -39,17 +41,17 @@ async def back_handler(message: Message):
     previous_menu = get_previous_menu(user_id)
     
     if previous_menu:
-        if previous_menu == kb.StartMenu:
+        if previous_menu == "start":
             await message.answer("Главное меню", reply_markup=kb.StartMenu)
-        elif previous_menu == kb.SitesMenu:
-            await message.answer("Выберите сайты:", reply_markup=kb.SitesMenu)
-        elif previous_menu == kb.FiltersMenu:
+        elif previous_menu == "sites_menu":
+            await message.answer("Выберите сайты:", reply_markup=sites_keyboard())
+        elif previous_menu == "filters_menu":
             await message.answer("Выберите фильтры:", reply_markup=kb.FiltersMenu)
-        elif previous_menu == kb.EmploymentMenu:
+        elif previous_menu == "employment_menu":
             await message.answer("Выберите занятость:", reply_markup=kb.EmploymentMenu)
-        elif previous_menu == kb.SalaryMenu:
+        elif previous_menu == "salary_menu":
             await message.answer("Выберите оклад:", reply_markup=kb.SalaryMenu)
-        elif previous_menu == kb.DurationMenu:
+        elif previous_menu == "duration_menu":
             await message.answer("Выберите длительность:", reply_markup=kb.DurationMenu)
     else:
         await message.answer("Главное меню", reply_markup=kb.StartMenu)
@@ -60,7 +62,7 @@ async def back_handler(message: Message):
 @router.message(CommandStart())
 async def cmd_start(message: Message):
     user_id = message.from_user.id
-    add_to_history(user_id, kb.StartMenu)
+    add_to_history(user_id, "start")
     await message.answer(LEXICON["/start"], reply_markup=kb.StartMenu)
 
 
@@ -68,25 +70,38 @@ async def cmd_start(message: Message):
 @router.message(F.text == LEXICON_COMMANDS["admin_panel"])
 async def admin_panel(message: Message):
     user_id = message.from_user.id
-    add_to_history(user_id, kb.AdminMenu)
+    add_to_history(user_id, "admin_menu")
     await message.answer(LEXICON["admin_welcome"], reply_markup=kb.AdminMenu)
+
+
+# Обработка кнопки "Добавить администратора"
+@router.message(F.text == LEXICON_COMMANDS["add_admin"])
+async def add_admin(message: Message):
+    await message.answer(text=LEXICON["unvailable"])
+
+
+# Обработка кнопки "Обновить БД"
+@router.message(F.text == LEXICON_COMMANDS["update_db"])
+async def update_db(message: Message):
+    await message.answer(text=LEXICON["unvailable"])
+
+
+# Обработка кнопки "Выгрузка файла"
+@router.message(F.text == LEXICON_COMMANDS["export_file"])
+async def export_file(message: Message):
+    await message.answer(text=LEXICON["unvailable"])
 
 
 # Обработка кнопки "Фильтры"
 @router.message(F.text == LEXICON_COMMANDS["filters"])
 async def select_site(message: Message):
     user_id = message.from_user.id
-    add_to_history(user_id, kb.SitesMenu)
-    await message.answer(LEXICON["select_site"], reply_markup=kb.SitesMenu)
+    add_to_history(user_id, "sites_menu")
+    await message.answer(LEXICON["select_site"], reply_markup=sites_keyboard())
 
 
 # Обработка выбора конкретного сайта
-@router.message(F.text.in_([
-    LEXICON_COMMANDS["hh"],
-    LEXICON_COMMANDS["trudvsem"],
-    LEXICON_COMMANDS["rabota"],
-    LEXICON_COMMANDS["superjob"]
-]))
+@router.message(F.text.in_(LEXICON_COMMANDS["sites"]))
 async def toggle_site(message: Message):
     user_id = message.from_user.id
     if user_id not in user_state:
@@ -112,12 +127,7 @@ async def select_all_sites(message: Message):
     if user_id not in user_state:
         user_state[user_id] = {"selected_sites": set()}
     
-    all_sites = {
-        LEXICON_COMMANDS["hh"],
-        LEXICON_COMMANDS["trudvsem"],
-        LEXICON_COMMANDS["rabota"],
-        LEXICON_COMMANDS["superjob"]
-    }
+    all_sites = set(LEXICON_COMMANDS["sites"])
     
     if user_state[user_id]["selected_sites"] == all_sites:
         user_state[user_id]["selected_sites"] = set()
@@ -135,7 +145,7 @@ async def process_sites(message: Message):
         await message.answer("Пожалуйста, выберите хотя бы один сайт!")
         return
     
-    add_to_history(user_id, kb.FiltersMenu)
+    add_to_history(user_id, "filters_menu")
     sites_list = "\n".join(f"• {site}" for site in user_state[user_id]["selected_sites"])
     await message.answer(
         f"Вы выбрали сайты:\n{sites_list}\n\n{LEXICON['select_filters']}",
@@ -143,11 +153,17 @@ async def process_sites(message: Message):
     )
 
 
+# Обработка фильтра по профессии
+@router.message(F.text == LEXICON_COMMANDS["profession"])
+async def select_profession(message: Message):
+    await message.answer(text=LEXICON["unvailable"])
+
+
 # Обработка меню занятости
 @router.message(F.text == LEXICON_COMMANDS["employment"])
 async def select_employment(message: Message):
     user_id = message.from_user.id
-    add_to_history(user_id, kb.EmploymentMenu)
+    add_to_history(user_id, "employment_menu")
     await message.answer(
         text=LEXICON["select_employment"],
         reply_markup=kb.EmploymentMenu
@@ -158,7 +174,7 @@ async def select_employment(message: Message):
 @router.message(F.text == LEXICON_COMMANDS["salary"])
 async def select_salary(message: Message):
     user_id = message.from_user.id
-    add_to_history(user_id, kb.SalaryMenu)
+    add_to_history(user_id, "salary_menu")
     await message.answer(
         text=LEXICON["select_salary"],
         reply_markup=kb.SalaryMenu
@@ -169,7 +185,7 @@ async def select_salary(message: Message):
 @router.message(F.text == LEXICON_COMMANDS["duration"])
 async def select_duration(message: Message):
     user_id = message.from_user.id
-    add_to_history(user_id, kb.DurationMenu)
+    add_to_history(user_id, "duration_menu")
     await message.answer(
         text=LEXICON["select_duration"],
         reply_markup=kb.DurationMenu
@@ -177,18 +193,7 @@ async def select_duration(message: Message):
 
 
 # Обработка выбора фильтров
-@router.message(F.text.in_([
-    LEXICON_COMMANDS["full_time"],
-    LEXICON_COMMANDS["part_time"],
-    LEXICON_COMMANDS["remote_employment"],
-    LEXICON_COMMANDS["all_employment"],
-    LEXICON_COMMANDS["no_salary"],
-    LEXICON_COMMANDS["with_salary"],
-    LEXICON_COMMANDS["up_to_1_month"],
-    LEXICON_COMMANDS["1_to_3_months"],
-    LEXICON_COMMANDS["3_months_or_more"],
-    LEXICON_COMMANDS["all_durations"]
-]))
+@router.message(AnswerFilter())
 async def filter_selected(message: Message):
     await message.answer(
         text=LEXICON["selected_option"].format(message.text),
