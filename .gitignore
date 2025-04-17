@@ -4,3 +4,4 @@ __pycache__
 .mypy_cache
 TODO.txt
 test.py
+data.json
