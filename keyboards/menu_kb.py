@@ -33,7 +33,6 @@ FiltersMenu = ReplyKeyboardMarkup(
         [
             KeyboardButton(text=LEXICON_COMMANDS["back"])
         ]
-        
     ],
     resize_keyboard=True,
     input_field_placeholder="Выберите фильтры"

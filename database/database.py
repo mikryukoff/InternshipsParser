@@ -1,7 +1,6 @@
 import aiomysql
 import asyncio
 from config.config import load_config, Config
-from typing import Union
 
 
 # Определяем конфиг
