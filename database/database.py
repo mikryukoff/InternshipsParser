@@ -118,12 +118,13 @@ class Internships(ConnectTable):
         salary_from: int,
         salary_to: int,
         duration: str,
+        employment: str,
         source_name: str,
         link: str,
         description: str
     ) -> None:
         """
-        Добавляет новую запись о стажировке в таблицу internships.
+        Добавляет новую запись о стажировке в таблицу internships и связывает её с типами занятости.
 
         Аргументы:
             title: (str): Названия объявления о стажировке.
@@ -132,6 +133,7 @@ class Internships(ConnectTable):
             salary_from: (int): Минимальная зарплата.
             salary_to: (int): Максимальная зарплата.
             duration: (str): Длительность стажировки.
+            employment: (str): Тип занятости.
             source_name: (str): Название источника (id?).
             link: (str): Ссылка на объявление.
             description: (str): Описание стажировки (Что не попало под шаблон).
@@ -139,38 +141,137 @@ class Internships(ConnectTable):
         async with self.connection_pool.acquire() as connection:
             async with connection.cursor() as cursor:
                 insert_internship = f"""
-                    INSERT INTO internships (title, profession, company_name, salary_from, salary_to, duration_text, source_id, link, description)
-                    VALUES ({title}, '{profession}', '{company_name}', '{salary_from}', '{salary_to}', '{duration}', '{source_name}', '{link}', '{description}');
+                    INSERT INTO internships (title, profession, company_name, salary_from, salary_to, duration, source_name, link, description)
+                    VALUES ('{title}', '{profession}', '{company_name}', '{salary_from}', '{salary_to}', '{duration}', '{source_name}', '{link}', '{description}');
                 """
                 await cursor.execute(insert_internship)
 
+                # Получаем ID стажировки
+                internship_id = cursor.lastrowid
+
+                # Цикл для добавления типов занятости, которых нет в таблице
+                while True:
+                    try:
+                        # Получаем ID типа занятости
+                        await cursor.execute(f"SELECT id FROM employment_types WHERE name = '{employment}'")
+                        row = await cursor.fetchone()
+                        employment_id = row[0]
+                        break
+                    except TypeError:
+                        await cursor.execute(f"INSERT IGNORE INTO employment_types (name) VALUES ('{employment}');")
+
+                # Связываем их
+                add_relation = f"""
+                INSERT INTO internship_employment (internship_id, employment_id)
+                VALUES ('{internship_id}', '{employment_id}')
+                """
+                await cursor.execute(add_relation)
+
     async def select_internship_data(self, **kwargs) -> tuple:
         """
-        Получает данные о стажировке по фильтрам, описанным в query.
+        Получает данные о стажировке с типами занятости по фильтрам.
 
         Аргументы:
             kwargs: Возможные фильтры:
                 profession: (str): Название профессии.
-                company_name: (str): Название компании, ищущей стажера.
+                company_name: (str): Название компании.
                 salary_from: (int): Минимальная зарплата.
                 salary_to: (int): Максимальная зарплата.
                 duration: (str): Длительность стажировки.
-                source_name (str): Название источника.
+                source_name: (str): Название источника.
+                employment_type: (str): Тип занятости (фильтр по точному совпадению)
 
         Возвращает:
-            tuple: Кортеж с данными по фильтру query.
+            tuple: Кортеж с данными стажировок и их типами занятости
         """
         async with self.connection_pool.acquire() as connection:
             async with connection.cursor() as cursor:
-                query = "SELECT * FROM internships WHERE 1=1"
+                # Базовый запрос с джоинами
+                query = """
+                    SELECT
+                        i.*,
+                        GROUP_CONCAT(et.name SEPARATOR ', ') AS employment_types
+                    FROM internships i
+                    LEFT JOIN internship_employment ie ON i.id = ie.internship_id
+                    LEFT JOIN employment_types et ON ie.employment_id = et.id
+                    WHERE 1=1
+                """
 
-                for key, value in kwargs:
-                    query += f" AND {key} = :{value}"
+                # Отдельная обработка employment_type
+                employment_type_filter = ""
+                if 'employment_type' in kwargs:
+                    employment_type_filter = """
+                        AND EXISTS (
+                            SELECT 1
+                            FROM internship_employment ie2
+                            JOIN employment_types et2 ON ie2.employment_id = et2.id
+                            WHERE ie2.internship_id = i.id
+                            AND et2.name = %(employment_type)s
+                        )
+                    """
+                    kwargs.pop('employment_type')
 
-                await cursor.execute(query)
-                row = await cursor.fetchone()
+                params = {}
+                filters = []
 
-        return row
+                # Формирование условий фильтрации
+                for key, value in kwargs.items():
+                    if value is not None:
+                        column_map = {
+                            'source_name': 's.name',
+                            'profession': 'i.profession',
+                            'company_name': 'i.company_name',
+                            'salary_from': 'i.salary_from',
+                            'salary_to': 'i.salary_to',
+                            'duration': 'i.duration_text'
+                        }
+
+                        if key in column_map:
+                            filters.append(f"{column_map[key]} = %({key})s")
+                            params[key] = value
+
+                # Собираем полный запрос
+                full_query = query
+                if filters:
+                    full_query += " AND " + " AND ".join(filters)
+
+                full_query += employment_type_filter
+                full_query += " GROUP BY i.id"  # Группировка для GROUP_CONCAT
+
+                await cursor.execute(full_query, params)
+                result = await cursor.fetchall()
+
+        return result
 
     async def update_internships(self, source_name: str) -> None:
         pass
+
+
+async def initialize_databases() -> tuple:
+    """
+    Инициализирует соединения с базами данных для таблиц.
+
+    Создает экземпляры классов, устанавливает
+    соединения с базами данных и возвращает их.
+
+    Возвращает:
+        tuple: Кортеж, содержащий экземпляры классов.
+    """
+    sources_table = Sources(
+        config.database.host,
+        config.database.user,
+        config.database.password,
+        config.database.db_name,
+    )
+
+    internships_table = Internships(
+        config.database.host,
+        config.database.user,
+        config.database.password,
+        config.database.db_name,
+    )
+
+    await sources_table.connect()
+    await internships_table.connect()
+
+    return sources_table, internships_table
