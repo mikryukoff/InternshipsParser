@@ -4,6 +4,7 @@ from aiogram.types import Message
 from lexicon import LEXICON, LEXICON_COMMANDS
 import keyboards.menu_kb as kb
 from handlers.menu_handlers import add_to_history
+from parsers import TrudVsemParser
 
 
 # Инициализация роутера
@@ -27,4 +28,9 @@ async def add_admin(message: Message):
 # Обработка кнопки "Обновить БД"
 @router.message(F.text == LEXICON_COMMANDS["update_db"])
 async def update_db(message: Message):
-    await message.answer(text=LEXICON["unvailable"])
+    trudvsem_parser: TrudVsemParser = TrudVsemParser()
+    try:
+        await trudvsem_parser.get_some_info()
+        await message.answer(text=LEXICON["db_succeed_update"])
+    except Exception:
+        await message.answer(text=LEXICON["db_failed_update"])
