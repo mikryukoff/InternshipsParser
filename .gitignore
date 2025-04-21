@@ -5,3 +5,4 @@ __pycache__
 TODO.txt
 test.py
 data.json
+*.json
