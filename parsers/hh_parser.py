@@ -5,6 +5,12 @@ from datetime import datetime
 from typing import Optional
 
 from database import initialize_databases, Sources, Internships
+from logger import get_logger
+
+
+# Инициализация логгера
+logger = get_logger(__name__)
+
 
 @dataclass
 class HHParser:
@@ -21,9 +27,8 @@ class HHParser:
                     return await response.json()
                 return None
         except Exception as e:
-            print(f"Error fetching vacancy {vacancy_id}: {str(e)}")
+            logger.error(f"Error fetching vacancy {vacancy_id}: {str(e)}")
             return None
-
 
     async def get_internships(self):
         """Основной метод для получения и сохранения стажировок"""
@@ -62,7 +67,7 @@ class HHParser:
                         page += 1
 
                 except Exception as e:
-                    print(f"Ошибка при запросе: {str(e)}")
+                    logger.error(f"Ошибка при запросе: {str(e)}")
                     break
 
     async def process_vacancy(self, session: aiohttp.ClientSession, item: dict, internships_table: Internships):
@@ -91,7 +96,7 @@ class HHParser:
             )
 
         except Exception as e:
-            print(f"Ошибка обработки вакансии {item.get('id')}: {str(e)}")
+            logger.error(f"Ошибка обработки вакансии {item.get('id')}: {str(e)}")
 
 
 if 'name' == "__main__":
