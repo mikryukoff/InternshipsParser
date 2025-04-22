@@ -4,7 +4,7 @@
 
 ### Локальная установка
 
-- Для Windows: установите Docker (инструкция: https://timeweb.cloud/tutorials/mysql/kak-ustanovit-mysql-na-windows).
+- Для Windows: установите Docker.
 
 **1. Склонируйте репозиторий:**
 ```bash
