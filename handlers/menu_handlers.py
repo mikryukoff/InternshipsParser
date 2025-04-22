@@ -7,6 +7,7 @@ from lexicon import LEXICON, LEXICON_COMMANDS
 import keyboards.menu_kb as kb
 from keyboards import sites_keyboard
 
+from database import initialize_databases, Sources, Internships
 
 # Инициализация роутера
 router: Router = Router()
@@ -68,7 +69,12 @@ async def cmd_start(message: Message):
 # Обработка кнопки "Выгрузка файла"
 @router.message(F.text == LEXICON_COMMANDS["export_file"])
 async def export_file(message: Message):
-    await message.answer(text=LEXICON["unvailable"])
+    tables = await initialize_databases()
+    _, internships_table = tables
+    internships_table: Internships = internships_table
+    result = await internships_table.select_internship_data()
+    for i in range(10):
+        await message.answer(text=result[i][1])
 
 
 # Обработка кнопки "Далее"
