@@ -1,0 +1,47 @@
+services:
+  db:
+    image: mysql:8.0
+    container_name: db
+    restart: always
+    env_file: .env
+    environment:
+      MYSQL_ROOT_PASSWORD: "${DB_PASSWORD}"
+      MYSQL_DATABASE: "${DB_NAME}"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./mysql_migrations:/docker-entrypoint-initdb.d
+    ports:
+      - "1000:3306"
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  app:
+    build: .
+    container_name: parser
+    env_file: .env
+    ports:
+      - "5000:5000"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - app-network
+
+  adminer:
+    image: adminer
+    ports:
+      - "8080:8080"  # Веб-интерфейс через порт 8080
+    networks:
+    - app-network
+
+volumes:
+  mysql_data:
+
+networks:
+  app-network:
+    driver: bridge

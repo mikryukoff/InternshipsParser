@@ -1,7 +1,10 @@
 venv
-.env
+.env.example
+venv
+.git
+*.pyc
 __pycache__
-.mypy_cache
+*.log
 TODO.txt
 test.py
 *.json

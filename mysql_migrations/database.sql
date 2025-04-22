@@ -1,9 +1,3 @@
--- Удаляем существующую базу данных, если она есть
-DROP DATABASE IF EXISTS internships_parser;
-
--- Создаем новую базу данных
-CREATE DATABASE internships_parser;
-
 -- Выбираем созданную БД для работы
 USE internships_parser;
 
@@ -30,7 +24,7 @@ CREATE TABLE sources (
     id INT AUTO_INCREMENT PRIMARY KEY,         -- ID
     source_name VARCHAR(100) UNIQUE NOT NULL,  -- Уникальное название источника
     base_url TEXT NOT NULL                     -- Базовый URL сайта-источника
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 /*
  * Таблица типов занятости
@@ -39,7 +33,7 @@ CREATE TABLE sources (
 CREATE TABLE employment_types (
     id INT AUTO_INCREMENT PRIMARY KEY,        -- ID
     name VARCHAR(50) UNIQUE NOT NULL          -- Уникальное название типа занятости
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 /*
  * Основная таблица стажировок
@@ -59,7 +53,7 @@ CREATE TABLE internships (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,          -- Дата создания записи
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,  -- Дата обновления
     FOREIGN KEY (source_name) REFERENCES sources(source_name)  -- Связь с источниками
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 /*
  * Связующая таблица "многие-ко-многим"
@@ -71,7 +65,7 @@ CREATE TABLE internship_employment (
     PRIMARY KEY (internship_id, employment_id),  -- Составной первичный ключ
     FOREIGN KEY (internship_id) REFERENCES internships(id) ON DELETE CASCADE,  -- Удаление связей при удалении стажировки
     FOREIGN KEY (employment_id) REFERENCES employment_types(id)                -- Связь с типами занятости
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 /*
  * Начальное заполнение таблицы источников
