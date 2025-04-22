@@ -4,6 +4,8 @@
 
 ### Локальная установка
 
+- Для Windows: установите Docker.
+
 **1. Склонируйте репозиторий:**
 ```bash
 git clone https://github.com/mikryukoff/StudentBot.git
