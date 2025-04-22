@@ -31,6 +31,7 @@ async def update_db(message: Message):
     trudvsem_parser: TrudVsemParser = TrudVsemParser()
     try:
         await trudvsem_parser.get_some_info()
+        await hh_parser.get_internships()
         await message.answer(text=LEXICON["db_succeed_update"])
     except Exception:
         await message.answer(text=LEXICON["db_failed_update"])
