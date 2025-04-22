@@ -4,7 +4,7 @@ from aiogram.types import Message
 from lexicon import LEXICON, LEXICON_COMMANDS
 import keyboards.menu_kb as kb
 from handlers.menu_handlers import add_to_history
-from parsers import TrudVsemParser
+from parsers import TrudVsemParser, HHParser
 
 
 # Инициализация роутера
@@ -29,6 +29,7 @@ async def add_admin(message: Message):
 @router.message(F.text == LEXICON_COMMANDS["update_db"])
 async def update_db(message: Message):
     trudvsem_parser: TrudVsemParser = TrudVsemParser()
+    hh_parser: HHParser = HHParser()
     try:
         await trudvsem_parser.get_some_info()
         await hh_parser.get_internships()
