@@ -14,3 +14,8 @@ cd StudentBot
 ```bash
 docker-compose up --build -d
 ```
+
+**3. Остановка Docker'а:**
+```bash
+docker-compose down
+```
