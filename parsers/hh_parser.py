@@ -1,67 +1,99 @@
-import requests
-import json
-from time import sleep
+from dataclasses import dataclass
+import aiohttp
+import asyncio
 from datetime import datetime
+from typing import Optional
 
-def get_internships():
-    url = "https://api.hh.ru/vacancies"
-    params = {
-        "text": "стажер OR стажировка OR internship", 
-        "area": 3,
-        "per_page": 50,
-        "page": 0,
-        "experience": "noExperience"
-    }
-    
-    all_vacancies = []
-    
-    try:
-        while True:
-            response = requests.get(url, params=params)
-            response.raise_for_status()
-            data = response.json()
-            
-            for item in data['items']:
+from database import initialize_databases, Sources, Internships
+
+@dataclass
+class HHParser:
+    url: str = "https://api.hh.ru/vacancies"
+    source_name: str = "hh.ru"
+    area_id: int = 3  # Екатеринбург
+    per_page: int = 50  
+
+    async def fetch_vacancy_details(self, session: aiohttp.ClientSession, vacancy_id: str) -> Optional[dict]:
+        """Асинхронное получение деталей вакансии"""
+        try:
+            async with session.get(f"{self.url}/{vacancy_id}") as response:
+                if response.status == 200:
+                    return await response.json()
+                return None
+        except Exception as e:
+            print(f"Error fetching vacancy {vacancy_id}: {str(e)}")
+            return None
+
+
+    async def get_internships(self):
+        """Основной метод для получения и сохранения стажировок"""
+        tables = await initialize_databases()
+        _, internships_table = tables
+        
+        async with aiohttp.ClientSession() as session:
+            page = 0
+            while True:
+                params = {
+                    "text": "стажер OR стажировка OR internship",
+                    "area": self.area_id,
+                    "per_page": self.per_page,
+                    "page": page,
+                    "experience": 'noExperience'
+                }
+
                 try:
-                    vacancy_id = item['id']
-                    vacancy_response = requests.get(f"{url}/{vacancy_id}")
-                    vacancy_data = vacancy_response.json()
-                    
-                    description = vacancy_data.get('description', '')
-                    
-                    vacancy = {
-                        'id': vacancy_id,
-                        'name': item['name'],
-                        'company': item['employer']['name'],
-                        'salary': item.get('salary'),
-                        'url': item['alternate_url'],
-                        'published': item['published_at'],
-                        'address': item['area']['name'],
-                        'description': description,
-                        'employment': item['employment']['name']
-                    }
-                    all_vacancies.append(vacancy)
-                    
+                    async with session.get(self.url, params=params) as response:
+                        if response.status != 200:
+                            break
+                            
+                        data = await response.json()
+                        vacancies = data.get('items', [])
+                        
+                        # Обработка вакансий асинхронно
+                        tasks = []
+                        for item in vacancies:
+                            tasks.append(self.process_vacancy(session, item, internships_table))
+                        
+                        await asyncio.gather(*tasks)
+
+                        # Проверка последней страницы
+                        if page >= data['pages'] - 1:
+                            break
+                        page += 1
+
                 except Exception as e:
-                    print(f"Ошибка обработки вакансии {vacancy_id}: {str(e)}")
-                    continue
+                    print(f"Ошибка при запросе: {str(e)}")
+                    break
 
-            if params['page'] >= data['pages'] - 1:
-                break
-                
-            params['page'] += 1
-            sleep(0.3)
+    async def process_vacancy(self, session: aiohttp.ClientSession, item: dict, internships_table: Internships):
+        """Обработка и сохранение одной вакансии"""
+        try:
+            vacancy_data = await self.fetch_vacancy_details(session, item['id'])
+            if not vacancy_data:
+                return
 
-    except Exception as e:
-        print(f"Ошибка: {str(e)}")
-    
-    filename = f"hh_internships_{datetime.now().strftime('%Y%m%d_%H%M')}.json"
-    try:
-        with open(filename, 'w', encoding='utf-8') as f:
-            json.dump(all_vacancies, f, ensure_ascii=False, indent=2)
-        print(f"\nСохранено {len(all_vacancies)} вакансий с описаниями")
-    except Exception as e:
-        print(f"Ошибка сохранения: {str(e)}")
+            salary = vacancy_data.get('salary', {})
+            professional_roles = vacancy_data.get('professional_roles', [{}])
+            employer = vacancy_data.get('employer', {})
 
-if __name__ == "__main__":
-    get_internships()
+
+            await internships_table.insert_internship(
+                title=vacancy_data.get('name', ''),
+                profession=professional_roles[0].get('name', ''),
+                company_name=employer.get('name', ''),
+                salary_from=salary.get('from'),
+                salary_to=salary.get('to'),
+                duration=None,
+                employment=vacancy_data.get('employment', {}).get('name', ''),
+                source_name=self.source_name,
+                link=vacancy_data.get('alternate_url', ''),
+                description=vacancy_data.get('description', '')
+            )
+
+        except Exception as e:
+            print(f"Ошибка обработки вакансии {item.get('id')}: {str(e)}")
+
+
+if 'name' == "__main__":
+    parser = HHParser()
+    asyncio.run(parser.get_internships())
