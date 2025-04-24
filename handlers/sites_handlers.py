@@ -3,7 +3,7 @@ from aiogram.types import Message
 
 from lexicon import LEXICON, LEXICON_COMMANDS
 from keyboards import sites_keyboard
-from handlers.menu_handlers import add_to_history, user_state
+from handlers.menu_handlers import add_to_history, user_state, add_to_query, remove_from_query
 
 
 # Инициализация роутера
@@ -30,8 +30,10 @@ async def toggle_site(message: Message):
 
     if site in selected:
         selected.remove(site)
+        remove_from_query(user_id, source_name=site)
     else:
         selected.add(site)
+        add_to_query(user_id, source_name=site)
 
     await message.answer(
         f"Сайт {site} {'выбран' if site in selected else 'удален из выбора'}"
@@ -49,7 +51,9 @@ async def select_all_sites(message: Message):
 
     if user_state[user_id]["selected_sites"] == all_sites:
         user_state[user_id]["selected_sites"] = set()
+        remove_from_query(user_id, source_name=LEXICON_COMMANDS["sites"])
         await message.answer("Все сайты сняты с выбора")
     else:
         user_state[user_id]["selected_sites"] = all_sites.copy()
+        add_to_query(user_id, source_name=LEXICON_COMMANDS["sites"])
         await message.answer("Все сайты выбраны")

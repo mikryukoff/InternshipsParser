@@ -1,7 +1,7 @@
 from aiogram import Router, F
 from aiogram.types import Message
 from aiogram.filters import CommandStart
-from typing import Dict, Any
+from typing import Any
 
 from lexicon import LEXICON, LEXICON_COMMANDS
 import keyboards.menu_kb as kb
@@ -13,8 +13,51 @@ from database import initialize_databases, Sources, Internships
 router: Router = Router()
 
 # Хранилища данных пользователей
-user_history: Dict[int, list] = {}
-user_state: Dict[int, Dict[str, Any]] = {}
+user_history: dict[int, list] = dict()
+user_state: dict[int, dict[str, Any]] = dict()
+query: dict[int, dict[str, str | int | list]] = dict()
+
+
+def add_to_query(user_id: int, **kwargs):
+    user_query = query.setdefault(user_id, {})
+
+    for key, value in kwargs.items():
+        if not isinstance(value, list):
+            value = [value]
+
+        current = user_query.get(key, [])
+        if not isinstance(current, list):
+            current = [current]
+
+        new_values = [v for v in value if v not in current]
+        user_query[key] = current + new_values
+
+    query[user_id] = user_query
+
+
+def remove_from_query(user_id: int, **kwargs):
+    if user_id not in query:
+        return
+
+    user_query = query[user_id]
+
+    for key, values in kwargs.items():
+        if key not in user_query:
+            continue
+
+        if not isinstance(values, list):
+            values = [values]
+
+        if isinstance(user_query[key], list):
+            user_query[key] = [item for item in user_query[key] if item not in values]
+
+            if not user_query[key]:
+                del user_query[key]
+        else:
+            if user_query[key] in values:
+                del user_query[key]
+
+    query[user_id] = user_query
 
 
 # Добавление меню в историю переходов
@@ -69,12 +112,16 @@ async def cmd_start(message: Message):
 # Обработка кнопки "Выгрузка файла"
 @router.message(F.text == LEXICON_COMMANDS["export_file"])
 async def export_file(message: Message):
+    user_id = message.from_user.id
     tables = await initialize_databases()
     _, internships_table = tables
     internships_table: Internships = internships_table
-    result = await internships_table.select_internship_data()
+    if user_id in query:
+        result = await internships_table.select_internship_data(**query[user_id])
+    else:
+        result = await internships_table.select_internship_data()
     for i in range(10):
-        await message.answer(text=result[i][1])
+        await message.answer(text=" ".join([str(j) for j in result[i]]))
 
 
 # Обработка кнопки "Далее"

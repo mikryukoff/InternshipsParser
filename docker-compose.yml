@@ -22,6 +22,7 @@ services:
 
   app:
     build: .
+    image: parser_app
     container_name: parser
     env_file: .env
     ports:

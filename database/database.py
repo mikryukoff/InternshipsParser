@@ -134,7 +134,7 @@ class Internships(ConnectTable):
             salary_to: (int): Максимальная зарплата.
             duration: (str): Длительность стажировки.
             employment: (str): Тип занятости.
-            source_name: (str): Название источника (id?).
+            source_name: (str): Название источника.
             link: (str): Ссылка на объявление.
             description: (str): Описание стажировки (Что не попало под шаблон).
         """
@@ -186,7 +186,6 @@ class Internships(ConnectTable):
         """
         async with self.connection_pool.acquire() as connection:
             async with connection.cursor() as cursor:
-                # Базовый запрос с джоинами
                 query = """
                     SELECT
                         i.*,
@@ -197,7 +196,6 @@ class Internships(ConnectTable):
                     WHERE 1=1
                 """
 
-                # Отдельная обработка employment_type
                 employment_type_filter = ""
                 if 'employment_type' in kwargs:
                     employment_type_filter = """
@@ -214,29 +212,38 @@ class Internships(ConnectTable):
                 params = {}
                 filters = []
 
-                # Формирование условий фильтрации
+                column_map = {
+                    'source_name': 'i.source_name',
+                    'profession': 'i.profession',
+                    'company_name': 'i.company_name',
+                    'salary_from': 'i.salary_from',
+                    'salary_to': 'i.salary_to',
+                    'duration': 'i.duration_text'
+                }
+
                 for key, value in kwargs.items():
-                    if value is not None:
-                        column_map = {
-                            'source_name': 's.name',
-                            'profession': 'i.profession',
-                            'company_name': 'i.company_name',
-                            'salary_from': 'i.salary_from',
-                            'salary_to': 'i.salary_to',
-                            'duration': 'i.duration_text'
-                        }
+                    if value is None:
+                        continue
+                    # Проверяем, поддерживается ли ключ
+                    if key not in column_map:
+                        continue
 
-                        if key in column_map:
-                            filters.append(f"{column_map[key]} = %({key})s")
-                            params[key] = value
+                    # Обработка списков
+                    if isinstance(value, (list, tuple)):
+                        if not value:  # Пустой список игнорируем
+                            continue
+                        filters.append(f"{column_map[key]} IN %({key})s")
+                        params[key] = tuple(value)
+                    else:
+                        filters.append(f"{column_map[key]} = %({key})s")
+                        params[key] = value
 
-                # Собираем полный запрос
                 full_query = query
                 if filters:
                     full_query += " AND " + " AND ".join(filters)
 
                 full_query += employment_type_filter
-                full_query += " GROUP BY i.id"  # Группировка для GROUP_CONCAT
+                full_query += " GROUP BY i.id"
 
                 await cursor.execute(full_query, params)
                 result = await cursor.fetchall()
