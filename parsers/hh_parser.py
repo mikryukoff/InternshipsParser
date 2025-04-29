@@ -17,7 +17,7 @@ class HHParser:
     url: str = "https://api.hh.ru/vacancies"
     source_name: str = "hh.ru"
     area_id: int = 3  # Екатеринбург
-    per_page: int = 50  
+    per_page: int = 50
 
     async def fetch_vacancy_details(self, session: aiohttp.ClientSession, vacancy_id: str) -> Optional[dict]:
         """Асинхронное получение деталей вакансии"""
@@ -33,8 +33,8 @@ class HHParser:
     async def get_internships(self):
         """Основной метод для получения и сохранения стажировок"""
         tables = await initialize_databases()
-        _, internships_table = tables
-        
+        internships_table = tables[1]
+
         async with aiohttp.ClientSession() as session:
             page = 0
             while True:
@@ -50,15 +50,15 @@ class HHParser:
                     async with session.get(self.url, params=params) as response:
                         if response.status != 200:
                             break
-                            
+
                         data = await response.json()
                         vacancies = data.get('items', [])
-                        
+
                         # Обработка вакансий асинхронно
                         tasks = []
                         for item in vacancies:
                             tasks.append(self.process_vacancy(session, item, internships_table))
-                        
+
                         await asyncio.gather(*tasks)
 
                         # Проверка последней страницы

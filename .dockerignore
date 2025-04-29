@@ -8,3 +8,4 @@ __pycache__
 TODO.txt
 test.py
 *.json
+mysql

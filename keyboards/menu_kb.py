@@ -1,5 +1,10 @@
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 from lexicon import LEXICON_COMMANDS
+from logger import get_logger
+
+
+# Инициализация логгера
+logger = get_logger(__name__)
 
 # Главное меню
 StartMenu = ReplyKeyboardMarkup(
@@ -54,27 +59,6 @@ AdminMenu = ReplyKeyboardMarkup(
     input_field_placeholder="Администрирование"
 )
 
-EmploymentMenu = ReplyKeyboardMarkup(
-    keyboard=[
-        [
-            KeyboardButton(text=LEXICON_COMMANDS["full_time"]),
-            KeyboardButton(text=LEXICON_COMMANDS["part_time"])
-        ],
-        [
-            KeyboardButton(text=LEXICON_COMMANDS["remote_employment"]),
-            KeyboardButton(text=LEXICON_COMMANDS["all_employment"])
-        ],
-        [
-            KeyboardButton(text=LEXICON_COMMANDS["export_file"])
-        ],
-        [
-            KeyboardButton(text=LEXICON_COMMANDS["back"])
-        ]
-    ],
-    resize_keyboard=True,
-    input_field_placeholder="Выберите занятость"
-)
-
 
 SalaryMenu = ReplyKeyboardMarkup(
     keyboard=[
@@ -117,8 +101,10 @@ DurationMenu = ReplyKeyboardMarkup(
 
 
 # Функция для генерации клавиатуры с сайтами
-def sites_keyboard() -> ReplyKeyboardMarkup:
+def sites_keyboard(selected: list[str] = None) -> ReplyKeyboardMarkup:
     "Функция, генерирующая клавиатуру со списком сайтов."
+    if selected is None:
+        selected = []
     keyboard = []
     row_count = len(LEXICON_COMMANDS["sites"]) // 2
     row_count += len(LEXICON_COMMANDS["sites"]) % 2
@@ -126,9 +112,15 @@ def sites_keyboard() -> ReplyKeyboardMarkup:
     step = 0
     for _ in range(row_count):
         if step + 2 <= len(LEXICON_COMMANDS["sites"]):
-            row = [KeyboardButton(text=LEXICON_COMMANDS["sites"][j]) for j in range(step, step + 2)]
+            row = []
+            for j in range(step, step + 2):
+                site = LEXICON_COMMANDS["sites"][j]
+                text = f"✅{site}" if site in selected else site
+                row.append(KeyboardButton(text=text))
         else:
-            row = [KeyboardButton(text=LEXICON_COMMANDS["sites"][-1])]
+            site = LEXICON_COMMANDS["sites"][-1]
+            text = f"✅{site}" if site in selected else site
+            row = [KeyboardButton(text=text)]
         keyboard.append(row)
         step += 2
 
@@ -140,4 +132,23 @@ def sites_keyboard() -> ReplyKeyboardMarkup:
         resize_keyboard=True,                      # Автоматическая настройка размера клавиатуры
         one_time_keyboard=False,                   # Клавиатура не скрывается после использования
         input_field_placeholder="Список сайтов"    # Подсказка для поля ввода
+    )
+
+
+def employment_types_keyboard(types: tuple[str], selected: list[str] = None) -> ReplyKeyboardMarkup:
+    if selected is None:
+        selected = []
+    keyboard = []
+
+    for i in types:
+        text = f"✅{i}" if i in selected else i
+        keyboard.append([KeyboardButton(text=text)])
+
+    keyboard.append([KeyboardButton(text=LEXICON_COMMANDS["back"]), KeyboardButton(text=LEXICON_COMMANDS["next"])])
+
+    return ReplyKeyboardMarkup(
+        keyboard=keyboard,                          # Клавиатура с кнопками
+        resize_keyboard=True,                       # Автоматическая настройка размера клавиатуры
+        one_time_keyboard=False,                    # Клавиатура не скрывается после использования
+        input_field_placeholder="Типы занятости"    # Подсказка для поля ввода
     )

@@ -17,7 +17,7 @@ class TrudVsemParser:
 
     async def get_some_info(self):
         tables = await initialize_databases()
-        _, internships_table = tables
+        internships_table = tables[1]
         response = (requests.get(f"{self.url}region/6600000000000?text=стажер"))
         data = response.json()["results"]["vacancies"]
 

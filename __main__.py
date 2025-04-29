@@ -38,7 +38,6 @@ async def main():
     # Регистрация роутеров в диспетчере
     dp.include_router(menu_handlers.router)
     dp.include_router(admin_handlers.router)
-    dp.include_router(sites_handlers.router)
     dp.include_router(filters_handlers.router)
 
     # Удаление вебхуков и запуск long-polling
