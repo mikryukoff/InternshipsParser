@@ -1,10 +1,13 @@
 import aiomysql
 import asyncio
 from config.config import load_config, Config
+from logger import get_logger
 
 
 # Определяем конфиг
 config: Config = load_config()
+
+logger = get_logger(__name__)
 
 
 class ConnectTable:
@@ -184,9 +187,10 @@ class Internships(ConnectTable):
         Возвращает:
             tuple: Кортеж с данными стажировок и их типами занятости
         """
+        logger.info(kwargs)
         async with self.connection_pool.acquire() as connection:
             async with connection.cursor() as cursor:
-                query = """
+                base_query = """
                     SELECT
                         i.*,
                         GROUP_CONCAT(et.name SEPARATOR ', ') AS employment_types
@@ -196,53 +200,57 @@ class Internships(ConnectTable):
                     WHERE 1=1
                 """
 
-                employment_type_filter = ""
-                if 'employment_type' in kwargs:
-                    employment_type_filter = """
-                        AND EXISTS (
+                params = {}
+                conditions = []
+                employment_types = kwargs.pop('employment_type', [])
+
+                # Обработка нескольких типов занятости
+                if employment_types:
+                    if isinstance(employment_types, str):
+                        employment_types = [employment_types]
+                    
+                    placeholders = ", ".join([f"%(_employment_type_{i})s" for i in range(len(employment_types))])
+                    conditions.append(f"""
+                        EXISTS (
                             SELECT 1
                             FROM internship_employment ie2
                             JOIN employment_types et2 ON ie2.employment_id = et2.id
                             WHERE ie2.internship_id = i.id
-                            AND et2.name = %(employment_type)s
+                            AND et2.name IN ({placeholders})
                         )
-                    """
-                    kwargs.pop('employment_type')
+                    """)
+                    for i, emp_type in enumerate(employment_types):
+                        params[f"_employment_type_{i}"] = emp_type
 
-                params = {}
-                filters = []
-
+                # Обработка остальных фильтров
                 column_map = {
-                    'source_name': 'i.source_name',
-                    'profession': 'i.profession',
-                    'company_name': 'i.company_name',
-                    'salary_from': 'i.salary_from',
-                    'salary_to': 'i.salary_to',
-                    'duration': 'i.duration_text'
+                    'source_name': ('i.source_name', 'IN'),
+                    'profession': ('i.profession', '='),
+                    'company_name': ('i.company_name', '='),
+                    'salary_from': ('i.salary_from', '>='),
+                    'salary_to': ('i.salary_to', '<='),
+                    'duration': ('i.duration_text', '=')
                 }
 
                 for key, value in kwargs.items():
-                    if value is None:
-                        continue
-                    # Проверяем, поддерживается ли ключ
-                    if key not in column_map:
+                    if key not in column_map or value is None:
                         continue
 
-                    # Обработка списков
+                    column, operator = column_map[key]
                     if isinstance(value, (list, tuple)):
-                        if not value:  # Пустой список игнорируем
+                        if not value:
                             continue
-                        filters.append(f"{column_map[key]} IN %({key})s")
-                        params[key] = tuple(value)
+                        placeholders = ", ".join([f"%({key}_{i})s" for i in range(len(value))])
+                        conditions.append(f"{column} IN ({placeholders})")
+                        for i, item in enumerate(value):
+                            params[f"{key}_{i}"] = item
                     else:
-                        filters.append(f"{column_map[key]} = %({key})s")
+                        conditions.append(f"{column} {operator} %({key})s")
                         params[key] = value
 
-                full_query = query
-                if filters:
-                    full_query += " AND " + " AND ".join(filters)
-
-                full_query += employment_type_filter
+                full_query = base_query
+                if conditions:
+                    full_query += " AND " + " AND ".join(conditions)
                 full_query += " GROUP BY i.id"
 
                 await cursor.execute(full_query, params)
@@ -252,6 +260,23 @@ class Internships(ConnectTable):
 
     async def update_internships(self, source_name: str) -> None:
         pass
+
+
+class EmploymentTypes(ConnectTable):
+    async def select_employment_types(self) -> tuple[str]:
+        """
+        Возвращает все типы занятости.
+
+        Возвращает:
+            tuple[str]: Кортеж со всеми доступными типами занятости.
+        """
+        async with self.connection_pool.acquire() as connection:
+            async with connection.cursor() as cursor:
+                select = """ SELECT name FROM employment_types; """
+                await cursor.execute(select)
+                rows = await cursor.fetchall()
+
+        return [row[0] for row in rows]
 
 
 async def initialize_databases() -> tuple:
@@ -268,17 +293,25 @@ async def initialize_databases() -> tuple:
         config.database.host,
         config.database.user,
         config.database.password,
-        config.database.db_name,
+        config.database.db_name
     )
 
     internships_table = Internships(
         config.database.host,
         config.database.user,
         config.database.password,
-        config.database.db_name,
+        config.database.db_name
+    )
+
+    employment_types_table = EmploymentTypes(
+        config.database.host,
+        config.database.user,
+        config.database.password,
+        config.database.db_name
     )
 
     await sources_table.connect()
     await internships_table.connect()
+    await employment_types_table.connect()
 
-    return sources_table, internships_table
+    return sources_table, internships_table, employment_types_table
