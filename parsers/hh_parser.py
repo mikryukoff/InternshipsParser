@@ -2,15 +2,15 @@ from dataclasses import dataclass
 import aiohttp
 import asyncio
 import re
-from datetime import datetime
 from typing import Optional
 
-from database import initialize_databases, Sources, Internships
+from database import initialize_databases, Internships
 from logger import get_logger
 
 
 # Инициализация логгера
 logger = get_logger(__name__)
+
 
 def clean_html(text: str) -> str:
     """Очистка текста от HTML тегов"""
@@ -18,13 +18,14 @@ def clean_html(text: str) -> str:
         return ""
     return re.sub(r'<[^>]+>', '', text).replace("\n", " ").strip()
 
+
 @dataclass
 class HHParser:
     url: str = "https://api.hh.ru/vacancies"
     source_name: str = "hh.ru"
     area_id: int = 3  # Екатеринбург
     per_page: int = 50
-    
+
     async def fetch_vacancy_details(self, session: aiohttp.ClientSession, vacancy_id: str) -> Optional[dict]:
         """Асинхронное получение деталей вакансии"""
         try:
@@ -63,7 +64,8 @@ class HHParser:
                         # Обработка вакансий асинхронно
                         tasks = []
                         for item in vacancies:
-                            tasks.append(self.process_vacancy(session, item, internships_table))
+                            tasks.append(self.process_vacancy(
+                                session, item, internships_table))
 
                         await asyncio.gather(*tasks)
 
@@ -97,10 +99,12 @@ class HHParser:
                 employment=vacancy_data.get('employment', {}).get('name', ''),
                 source_name=self.source_name,
                 link=vacancy_data.get('alternate_url', ''),
-                description=clean_html(vacancy_data.get('description', ''))  # Применяем очистку HTML
-                
+                # Применяем очистку HTML
+                description=clean_html(vacancy_data.get('description', '')))
+
         except Exception as e:
-            logger.error(f"Ошибка обработки вакансии {item.get('id')}: {str(e)}")
+            logger.error(
+                f"Ошибка обработки вакансии {item.get('id')}: {str(e)}")
 
 
 if __name__ == "__main__":
