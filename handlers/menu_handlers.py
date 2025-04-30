@@ -184,7 +184,12 @@ async def export_file(message: Message, state: FSMContext):
             reply_markup=kb.StartMenu
         )
     finally:
-        os.unlink(tmpfile_path)
+        # Гарантированное удаление файла, даже если возникла ошибка при отправке
+        if tmpfile_path and os.path.exists(tmpfile_path):
+            try:
+                os.remove(tmpfile_path)
+            except Exception as e:
+                pass
         await state.clear()
 
 

@@ -2,8 +2,7 @@
 from handlers import (
     menu_handlers,
     filters_handlers,
-    admin_handlers,
-    sites_handlers
+    admin_handlers
 )
 
 from logger import get_logger

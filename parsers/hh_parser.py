@@ -1,15 +1,22 @@
 from dataclasses import dataclass
 import aiohttp
 import asyncio
-from datetime import datetime
+import re
 from typing import Optional
 
-from database import initialize_databases, Sources, Internships
+from database import initialize_databases, Internships
 from logger import get_logger
 
 
 # Инициализация логгера
 logger = get_logger(__name__)
+
+
+def clean_html(text: str) -> str:
+    """Очистка текста от HTML тегов"""
+    if not text:
+        return ""
+    return re.sub(r'<[^>]+>', '', text).replace("\n", " ").strip()
 
 
 @dataclass
@@ -27,7 +34,7 @@ class HHParser:
                     return await response.json()
                 return None
         except Exception as e:
-            logger.error(f"Error fetching vacancy {vacancy_id}: {str(e)}")
+            logger.error(f"Error fetching vacancy {vacancy_id}: п{str(e)}")
             return None
 
     async def get_internships(self):
@@ -57,7 +64,8 @@ class HHParser:
                         # Обработка вакансий асинхронно
                         tasks = []
                         for item in vacancies:
-                            tasks.append(self.process_vacancy(session, item, internships_table))
+                            tasks.append(self.process_vacancy(
+                                session, item, internships_table))
 
                         await asyncio.gather(*tasks)
 
@@ -80,25 +88,29 @@ class HHParser:
             salary = vacancy_data.get('salary', {})
             professional_roles = vacancy_data.get('professional_roles', [{}])
             employer = vacancy_data.get('employer', {})
-
+            description = vacancy_data.get('description', '')
+            if description:
+                description = re.sub(r'(?:<).*?(?:>)', '', description).replace("\n", " ").strip()
 
             await internships_table.insert_internship(
                 title=vacancy_data.get('name', ''),
                 profession=professional_roles[0].get('name', ''),
                 company_name=employer.get('name', ''),
                 salary_from=salary.get('from'),
-                salary_to=salary.get('to'),
+                salary_to=salary.get('to', 1.0),
                 duration=None,
                 employment=vacancy_data.get('employment', {}).get('name', ''),
                 source_name=self.source_name,
                 link=vacancy_data.get('alternate_url', ''),
-                description=vacancy_data.get('description', '')
+                # Применяем очистку HTML
+                description=description
             )
 
         except Exception as e:
-            logger.error(f"Ошибка обработки вакансии {item.get('id')}: {str(e)}")
+            logger.error(
+                f"Ошибка обработки вакансии {item.get('id')}: {str(e)}")
 
 
-if 'name' == "__main__":
+if __name__ == "__main__":
     parser = HHParser()
     asyncio.run(parser.get_internships())
