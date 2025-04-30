@@ -88,23 +88,19 @@ class HHParser:
             salary = vacancy_data.get('salary', {})
             professional_roles = vacancy_data.get('professional_roles', [{}])
             employer = vacancy_data.get('employer', {})
-            description = vacancy_data.get('description', '')
-            if description:
-                description = re.sub(r'(?:<).*?(?:>)', '', description).replace("\n", " ").strip()
 
             await internships_table.insert_internship(
                 title=vacancy_data.get('name', ''),
                 profession=professional_roles[0].get('name', ''),
                 company_name=employer.get('name', ''),
                 salary_from=salary.get('from'),
-                salary_to=salary.get('to', 1.0),
+                salary_to=salary.get('to'),
                 duration=None,
                 employment=vacancy_data.get('employment', {}).get('name', ''),
                 source_name=self.source_name,
                 link=vacancy_data.get('alternate_url', ''),
                 # Применяем очистку HTML
-                description=description
-            )
+                description=clean_html(vacancy_data.get('description', '')))
 
         except Exception as e:
             logger.error(
