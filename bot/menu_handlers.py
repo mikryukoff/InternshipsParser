@@ -1,4 +1,4 @@
-import csv
+import json
 import tempfile
 import os
 
@@ -9,16 +9,19 @@ from aiogram.filters import CommandStart
 from aiogram.fsm.context import FSMContext
 from typing import Any
 
-from lexicon import LEXICON, LEXICON_COMMANDS
-import keyboards.menu_kb as kb
-from keyboards import sites_keyboard, employment_types_keyboard
+from bot.lexicon import LEXICON, LEXICON_COMMANDS
+import bot.menu_kb as kb
+from bot.menu_kb import sites_keyboard, employment_types_keyboard
 
-from database import initialize_databases, Sources, Internships, EmploymentTypes
+from common.database import initialize_databases, Sources, Internships, EmploymentTypes
 
-from random import choice
+from common.logger import get_logger
+
 
 # Инициализация роутера
 router: Router = Router()
+
+logger = get_logger(__name__)
 
 # Хранилища данных пользователей
 user_history: dict[int, list] = dict()
@@ -143,53 +146,54 @@ async def export_file(message: Message, state: FSMContext):
         await message.answer("⚠️ Нет данных для экспорта")
         return
 
-    # Создаем временный CSV-файл
+    # Создаем временный JSON-файл
     with tempfile.NamedTemporaryFile(
         mode='w',
-        suffix='.csv',
+        suffix='.json',
         delete=False,
-        encoding='utf-8-sig',
+        encoding='utf-8',
         newline=''
     ) as tmpfile:
-        writer = csv.writer(tmpfile, delimiter=';', quoting=csv.QUOTE_ALL)
-
-        # Заголовки столбцов (адаптируйте под вашу структуру данных)
+        # Формируем структуру данных
         headers = [
-            'ID',
-            'Профессия',
-            'Компания',
-            'Зарплата от',
-            'Зарплата до',
-            'Длительность',
-            'Источник',
-            'Ссылка',
-            'Описание',
-            'Дата обновления',
-            'Типы занятости'
+            'id', 'title', 'profession', 'company_name', 'salary_from',
+            'salary_to', 'duration', 'source_name', 'link',
+            'description', 'created_at', 'updated_at', 'employment_types'
         ]
 
-        writer.writerow(headers)
+        json_data = []
         for row in result:
-            cleaned_row = [str(item) if item is not None else '' for item in row]
-            writer.writerow(cleaned_row)
+            item = {
+                header: str(value) if value is not None else ''
+                for header, value in zip(headers, row)
+            }
+            # Конвертация числовых полей
+            for numeric_field in ['id', 'salary_from', 'salary_to']:
+                if item[numeric_field].isdigit():
+                    item[numeric_field] = int(item[numeric_field])
 
+            json_data.append(item)
+
+        # Записываем JSON с красивым форматированием
+        json.dump(json_data, tmpfile, ensure_ascii=False, indent=4)
         tmpfile_path = tmpfile.name
 
     try:
-        # Используем FSInputFile для файлов из файловой системы
-        document = FSInputFile(path=tmpfile_path, filename='internships.csv')
+        document = FSInputFile(
+            path=tmpfile_path,
+            filename='internships.json'
+        )
         await message.answer_document(
             document=document,
             caption='📊 Результаты поиска стажировок',
             reply_markup=kb.StartMenu
         )
     finally:
-        # Гарантированное удаление файла, даже если возникла ошибка при отправке
         if tmpfile_path and os.path.exists(tmpfile_path):
             try:
                 os.remove(tmpfile_path)
             except Exception as e:
-                pass
+                logger.error(f"Ошибка удаления файла: {e}")
         await state.clear()
 
 

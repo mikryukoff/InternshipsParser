@@ -1,11 +1,7 @@
 # Импорты локальных модулей
-from handlers import (
-    menu_handlers,
-    filters_handlers,
-    admin_handlers
-)
+from bot import admin_handlers, filters_handlers, menu_handlers
 
-from logger import get_logger
+from common.logger import get_logger
 
 # Импорты стандартных библиотек
 import asyncio
@@ -15,7 +11,7 @@ from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 
 # Импорты конфигурации
-from config import load_config
+from common.config import load_config
 
 # Логгер для работы с логами
 logger = get_logger(__name__)

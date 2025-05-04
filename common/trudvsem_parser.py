@@ -2,8 +2,8 @@ from dataclasses import dataclass
 import requests
 import asyncio
 
-from database import initialize_databases, Sources, Internships
-from logger import get_logger
+from common.database import initialize_databases, Sources, Internships
+from common.logger import get_logger
 
 
 # Инициализация логгера

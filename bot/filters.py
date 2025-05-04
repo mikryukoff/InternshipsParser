@@ -1,7 +1,7 @@
 from aiogram.filters import BaseFilter
 from aiogram.types import Message
 
-from lexicon import LEXICON_COMMANDS
+from bot.lexicon import LEXICON_COMMANDS
 
 
 class AnswerFilter(BaseFilter):
