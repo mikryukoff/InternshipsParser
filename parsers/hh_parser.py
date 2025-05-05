@@ -28,16 +28,30 @@ class HHParser:
 
     async def fetch_vacancy_details(self, session: aiohttp.ClientSession, vacancy_id: str) -> Optional[dict]:
         """Асинхронное получение деталей вакансии"""
-        logger.debug(f"Загрузка деталей вакансии {vacancy_id}")
-        try:
-            async with session.get(f"{self.url}/{vacancy_id}") as response:
-                if response.status == 200:
-                    return await response.json()
-                logger.warning(f"Ошибка {response.status} при загрузке вакансии {vacancy_id}")
-                return None
-        except Exception as e:
-            logger.error(f"Error fetching vacancy {vacancy_id}: п{str(e)}")
-            return None
+
+        max_retries = 3
+        base_delay = 0.3
+
+        for attempt in range(max_retries):
+            try:
+                async with session.get(f"{self.url}/{vacancy_id}") as response:
+                    if response.status == 200:
+                        logger.info(f"Успешно загружена вакансия {vacancy_id} (попытка {attempt + 1})")
+                        return await response.json()
+                    elif response.status == 403:
+                        delay = base_delay * (attempt + 1)
+                        logger.warning(f"403 Ошибка для вакансии {vacancy_id }(попытка {attempt + 1}). Пауза {delay} сек")
+                        await asyncio.sleep(delay)
+                        continue
+                    else:
+                        logger.warning(f"Ошибка {response.status} при загрузке вакансии {vacancy_id}")
+                        return None
+            except Exception as e:
+                logger.error(f"Ошибка получения вакансии {vacancy_id}: {str(e)}")
+                await asyncio.sleep(base_delay)
+    
+        logger.error(f"Не удалось загрузить вакансию {vacancy_id} после {max_retries} попыток")
+        return None
 
     async def get_internships(self):
         """Основной метод для получения и сохранения стажировок"""
@@ -58,6 +72,13 @@ class HHParser:
 
                 try:
                     async with session.get(self.url, params=params) as response:
+                        if response.status == 403:
+                            logger.warning("Получена ошибка 403 при загрузке страницы. Делаю паузу 2 секунды...")
+                            await asyncio.sleep(0.3)
+                            continue
+                        
+                        await asyncio.sleep(3)
+
                         if response.status != 200:
                             logger.error(f"Ошибка {response.status} при загрузке страницы {page}")
                             break
@@ -70,13 +91,17 @@ class HHParser:
                             logger.info("Нет вакансий, завершение обработки")
                             break
 
-                        # Обработка вакансий асинхронно
-                        tasks = []
-                        for item in vacancies:
-                            tasks.append(self.process_vacancy(
-                                session, item, internships_table))
+                        # Обработка вакансий
+                        batch_size = 4
+                        delay = 1.1
 
-                        await asyncio.gather(*tasks)
+                        for i in range(0, len(vacancies), batch_size):
+                            batch = vacancies[i:i+batch_size]
+                            tasks = [self.process_vacancy(session, item, tables) for item in batch]
+                            await asyncio.gather(*tasks)
+                            if i + batch_size < len(vacancies):
+                                await asyncio.sleep(delay)
+
                         logger.info(f"Завершена обработка страницы {page + 1}")
 
                         # Проверка последней страницы
@@ -121,3 +146,4 @@ class HHParser:
 if __name__ == "__main__":
     parser = HHParser()
     asyncio.run(parser.get_internships())
+
