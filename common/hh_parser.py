@@ -4,8 +4,8 @@ import asyncio
 import re
 from typing import Optional
 
-from common.database import initialize_databases, Internships
-from common.logger import get_logger
+from database import initialize_databases, Internships
+from logger import get_logger
 
 
 # Инициализация логгера
@@ -56,7 +56,7 @@ class HHParser:
     async def get_internships(self):
         """Основной метод для получения и сохранения стажировок"""
         tables = await initialize_databases()
-        internships_table: Internships = tables[1]
+        internships_table = tables[1]
 
         async with aiohttp.ClientSession() as session:
             page = 0
@@ -140,8 +140,7 @@ class HHParser:
                 source_name=self.source_name,
                 link=vacancy_data.get('alternate_url', ''),
                 # Применяем очистку HTML
-                description=clean_html(vacancy_data.get('description', ''))
-                )
+                description=clean_html(vacancy_data.get('description', '')))
 
         except Exception as e:
             logger.error(f"Ошибка обработки вакансии {item.get('id')}: {str(e)}")
