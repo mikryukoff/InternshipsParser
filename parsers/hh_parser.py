@@ -97,7 +97,7 @@ class HHParser:
 
                         for i in range(0, len(vacancies), batch_size):
                             batch = vacancies[i:i+batch_size]
-                            tasks = [self.process_vacancy(session, item, tables) for item in batch]
+                            tasks = [self.process_vacancy(session, item, internships_table) for item in batch]
                             await asyncio.gather(*tasks)
                             if i + batch_size < len(vacancies):
                                 await asyncio.sleep(delay)
@@ -122,16 +122,19 @@ class HHParser:
             if not vacancy_data:
                 return
 
-            salary = vacancy_data.get('salary', {})
+            salary = vacancy_data.get('salary') or {}
             professional_roles = vacancy_data.get('professional_roles', [{}])
             employer = vacancy_data.get('employer', {})
+
+            salary_from = salary.get('from') if salary.get('from') is not None else 0
+            salary_to = salary.get('to') if salary.get('to') is not None else 0
 
             await internships_table.insert_internship(
                 title=vacancy_data.get('name', ''),
                 profession=professional_roles[0].get('name', ''),
                 company_name=employer.get('name', ''),
-                salary_from=salary.get('from'),
-                salary_to=salary.get('to'),
+                salary_from=float(salary_from),
+                salary_to=float(salary_to),
                 duration=None,
                 employment=vacancy_data.get('employment', {}).get('name', ''),
                 source_name=self.source_name,
