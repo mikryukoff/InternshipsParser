@@ -28,10 +28,12 @@ class HHParser:
 
     async def fetch_vacancy_details(self, session: aiohttp.ClientSession, vacancy_id: str) -> Optional[dict]:
         """Асинхронное получение деталей вакансии"""
+        logger.debug(f"Загрузка деталей вакансии {vacancy_id}")
         try:
             async with session.get(f"{self.url}/{vacancy_id}") as response:
                 if response.status == 200:
                     return await response.json()
+                logger.warning(f"Ошибка {response.status} при загрузке вакансии {vacancy_id}")
                 return None
         except Exception as e:
             logger.error(f"Error fetching vacancy {vacancy_id}: п{str(e)}")
@@ -45,6 +47,7 @@ class HHParser:
         async with aiohttp.ClientSession() as session:
             page = 0
             while True:
+                logger.info(f"Обработка страницы {page + 1}")
                 params = {
                     "text": "стажер OR стажировка OR internship",
                     "area": self.area_id,
@@ -56,10 +59,16 @@ class HHParser:
                 try:
                     async with session.get(self.url, params=params) as response:
                         if response.status != 200:
+                            logger.error(f"Ошибка {response.status} при загрузке страницы {page}")
                             break
-
+                        
                         data = await response.json()
                         vacancies = data.get('items', [])
+                        logger.info(f"Найдено {len(vacancies)} вакансий на странице {page + 1}")
+
+                        if not vacancies:
+                            logger.info("Нет вакансий, завершение обработки")
+                            break
 
                         # Обработка вакансий асинхронно
                         tasks = []
@@ -68,15 +77,18 @@ class HHParser:
                                 session, item, internships_table))
 
                         await asyncio.gather(*tasks)
+                        logger.info(f"Завершена обработка страницы {page + 1}")
 
                         # Проверка последней страницы
                         if page >= data['pages'] - 1:
+                            logger.info("Достигнута последняя страница")
                             break
                         page += 1
 
                 except Exception as e:
                     logger.error(f"Ошибка при запросе: {str(e)}")
                     break
+        logger.info("Завершение сбора стажировок с HH")
 
     async def process_vacancy(self, session: aiohttp.ClientSession, item: dict, internships_table: Internships):
         """Обработка и сохранение одной вакансии"""
@@ -103,8 +115,7 @@ class HHParser:
                 description=clean_html(vacancy_data.get('description', '')))
 
         except Exception as e:
-            logger.error(
-                f"Ошибка обработки вакансии {item.get('id')}: {str(e)}")
+            logger.error(f"Ошибка обработки вакансии {item.get('id')}: {str(e)}")
 
 
 if __name__ == "__main__":
