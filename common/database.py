@@ -244,8 +244,13 @@ class Internships(ConnectTable):
                 for key, column in text_filters.items():
                     value = kwargs.get(key)
                     if value:
+                        # Нормализация: удаление пробелов и приведение к нижнему регистру
                         if isinstance(value, (list, tuple)):
-                            # Для нескольких значений используем OR
+                            value = [v.strip().lower() for v in value]
+                        else:
+                            value = value.strip().lower()
+
+                        if isinstance(value, (list, tuple)):
                             or_conditions = []
                             for i, item in enumerate(value):
                                 param_name = f"{key}_like_{i}"
@@ -253,7 +258,6 @@ class Internships(ConnectTable):
                                 params[param_name] = f"%{item}%"
                             conditions.append(f"({' OR '.join(or_conditions)})")
                         else:
-                            # Для одного значения
                             conditions.append(f"{column} LIKE %({key}_like)s")
                             params[f"{key}_like"] = f"%{value}%"
 
