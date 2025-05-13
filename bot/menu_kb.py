@@ -67,10 +67,8 @@ SalaryMenu = ReplyKeyboardMarkup(
             KeyboardButton(text=LEXICON_COMMANDS["with_salary"])
         ],
         [
-            KeyboardButton(text=LEXICON_COMMANDS["export_file"])
-        ],
-        [
-            KeyboardButton(text=LEXICON_COMMANDS["back"])
+            KeyboardButton(text=LEXICON_COMMANDS["back"]),
+            KeyboardButton(text=LEXICON_COMMANDS["next"])
         ]
     ],
     resize_keyboard=True,
@@ -89,10 +87,8 @@ DurationMenu = ReplyKeyboardMarkup(
             KeyboardButton(text=LEXICON_COMMANDS["all_durations"])
         ],
         [
-            KeyboardButton(text=LEXICON_COMMANDS["export_file"])
-        ],
-        [
-            KeyboardButton(text=LEXICON_COMMANDS["back"])
+            KeyboardButton(text=LEXICON_COMMANDS["back"]),
+            KeyboardButton(text=LEXICON_COMMANDS["next"])
         ]
     ],
     resize_keyboard=True,
