@@ -1,6 +1,4 @@
 import aiomysql
-from contextlib import asynccontextmanager
-from typing import AsyncGenerator
 import asyncio
 from common.config import load_config, Config
 from common.logger import get_logger
@@ -184,7 +182,8 @@ class Internships(ConnectTable):
                 salary_to: (int): Максимальная зарплата.
                 duration: (str): Длительность стажировки.
                 source_name: (str): Название источника.
-                employment_type: (str): Тип занятости (фильтр по точному совпадению)
+                employment_type: (str): Тип занятости
+                description: (str): Описание стажировки (что не попало под шаблон)
 
         Возвращает:
             tuple: Кортеж с данными стажировок и их типами занятости
@@ -224,31 +223,39 @@ class Internships(ConnectTable):
                     for i, emp_type in enumerate(employment_types):
                         params[f"_employment_type_{i}"] = emp_type
 
-                # Обработка остальных фильтров
-                column_map = {
-                    'source_name': ('i.source_name', 'IN'),
-                    'profession': ('i.profession', '='),
-                    'company_name': ('i.company_name', '='),
-                    'salary_from': ('i.salary_from', '>='),
-                    'salary_to': ('i.salary_to', '<='),
-                    'duration': ('i.duration_text', '=')
+                # Обработка зарплат
+                if 'salary_from' in kwargs and kwargs['salary_from'] is not None:
+                    conditions.append("i.salary_from >= %(salary_from)s")
+                    params['salary_from'] = kwargs.pop('salary_from')
+
+                if 'salary_to' in kwargs and kwargs['salary_to'] is not None:
+                    conditions.append("i.salary_to <= %(salary_to)s")
+                    params['salary_to'] = kwargs.pop('salary_to')
+
+                # Обработка текстовых фильтров с частичным совпадением
+                text_filters = {
+                    'profession': 'i.profession',
+                    'company_name': 'i.company_name',
+                    'duration': 'i.duration_text',
+                    'source_name': 'i.source_name',
+                    'description': 'i.description'
                 }
 
-                for key, value in kwargs.items():
-                    if key not in column_map or value is None:
-                        continue
-
-                    column, operator = column_map[key]
-                    if isinstance(value, (list, tuple)):
-                        if not value:
-                            continue
-                        placeholders = ", ".join([f"%({key}_{i})s" for i in range(len(value))])
-                        conditions.append(f"{column} IN ({placeholders})")
-                        for i, item in enumerate(value):
-                            params[f"{key}_{i}"] = item
-                    else:
-                        conditions.append(f"{column} {operator} %({key})s")
-                        params[key] = value
+                for key, column in text_filters.items():
+                    value = kwargs.get(key)
+                    if value:
+                        if isinstance(value, (list, tuple)):
+                            # Для нескольких значений используем OR
+                            or_conditions = []
+                            for i, item in enumerate(value):
+                                param_name = f"{key}_like_{i}"
+                                or_conditions.append(f"{column} LIKE %({param_name})s")
+                                params[param_name] = f"%{item}%"
+                            conditions.append(f"({' OR '.join(or_conditions)})")
+                        else:
+                            # Для одного значения
+                            conditions.append(f"{column} LIKE %({key}_like)s")
+                            params[f"{key}_like"] = f"%{value}%"
 
                 full_query = base_query
                 if conditions:

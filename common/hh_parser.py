@@ -4,8 +4,8 @@ import asyncio
 import re
 from typing import Optional
 
-from database import initialize_databases, Internships
-from logger import get_logger
+from common.database import initialize_databases, Internships
+from common.logger import get_logger
 
 
 # Инициализация логгера
