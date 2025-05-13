@@ -1,3 +1,5 @@
+import asyncio
+
 from aiogram import Router, F
 from aiogram.types import Message
 
@@ -37,8 +39,10 @@ async def update_db(message: Message):
     await message.answer(text=LEXICON["processing"])
     logger.info("Updating DB")
     try:
-        await trudvsem_parser.get_some_info()
-        await hh_parser.get_internships()
+        await asyncio.gather(
+            trudvsem_parser.get_some_info(),
+            hh_parser.get_internships()
+        )
         await message.answer(text=LEXICON["db_succeed_update"])
     except Exception as e:
         logger.error(str(e))

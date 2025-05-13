@@ -1,9 +1,9 @@
 from aiogram import Router, F
-from aiogram.types import Message, CallbackQuery
+from aiogram.types import Message
 
 from bot.lexicon import LEXICON, LEXICON_COMMANDS
 import bot.menu_kb as kb
-from bot.filters import AnswerFilter
+from bot.filters import AnswerFilter, SalaryFilter
 from bot.menu_handlers import add_to_history, add_to_query, remove_from_query
 from common.database import initialize_databases, EmploymentTypes
 from bot.menu_kb import employment_types_keyboard, sites_keyboard
@@ -12,6 +12,9 @@ from aiogram.fsm.state import StatesGroup, State
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.storage.memory import MemoryStorage
 
+
+employment_types = []
+professions = False
 
 # Инициализация роутера
 router: Router = Router()
@@ -81,7 +84,23 @@ async def select_all_sites(message: Message, state: FSMContext):
 # Обработка фильтра по профессии
 @router.message(F.text == LEXICON_COMMANDS["profession"])
 async def select_profession(message: Message):
-    await message.answer(text=LEXICON["unvailable"])
+    global professions
+    professions = True
+    user_id = message.from_user.id
+
+    add_to_history(user_id, "employment_menu")
+    await message.answer(text=LEXICON["input_profession"])
+
+
+@router.message(lambda x: True if professions else False)
+async def process_profession_selection(message: Message, state: FSMContext):
+    global professions
+    professions = False
+
+    await add_to_query(state, profession=message.text)
+    return message.answer(
+        text=f'Профессии, включающие слова "{message.text}", добавлены'
+    )
 
 
 # Обработка меню занятости
@@ -141,6 +160,29 @@ async def select_salary(message: Message):
     await message.answer(
         text=LEXICON["select_salary"],
         reply_markup=kb.SalaryMenu
+    )
+
+
+@router.message(F.text == LEXICON_COMMANDS["with_salary"])
+async def process_salary_selection(message: Message):
+    await message.answer(
+        text=LEXICON["input_salary"]
+    )
+
+
+@router.message(SalaryFilter())
+async def process_salary_input(message: Message, state: FSMContext):
+    global salary
+    salary = False
+
+    salary_from, salary_to = map(str.strip, message.text.split("-"))
+
+    await add_to_query(state, salary_from=salary_from)
+    await add_to_query(state, salary_to=salary_to)
+
+    await message.answer(
+        text=f"Диапазон оклада {salary_from} - {salary_to} выбран",
+        reply_markup=kb.FiltersMenu
     )
 
 

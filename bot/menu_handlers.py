@@ -35,7 +35,7 @@ async def add_to_query(state: FSMContext, **kwargs):
 
     for key, value in kwargs.items():
         if not isinstance(value, list):
-            value = [value]
+            value = value.split(",")
 
         current = current_filters.get(key, [])
         current_filters[key] = list(set(current + value))
@@ -49,7 +49,7 @@ async def remove_from_query(state: FSMContext, **kwargs):
 
     for key, values in kwargs.items():
         if not isinstance(values, list):
-            values = [values]
+            values = values.split(",")
 
         if key in current_filters:
             current_filters[key] = [v for v in current_filters[key] if v not in values]
@@ -95,20 +95,26 @@ async def back_handler(message: Message, state: FSMContext):
 
     if previous_menu:
         if previous_menu == "start":
-            await message.answer("Главное меню", reply_markup=kb.StartMenu)
+            await message.answer(
+                text=LEXICON["main_menu"],
+                reply_markup=kb.StartMenu
+            )
 
         elif previous_menu == "sites_menu":
             await message.answer(
-                text="Выберите сайты:",
+                text=LEXICON["select_site"],
                 reply_markup=sites_keyboard(selected_sites)
             )
 
         elif previous_menu == "filters_menu":
-            await message.answer("Выберите фильтры:", reply_markup=kb.FiltersMenu)
+            await message.answer(
+                text=LEXICON["select_filters"],
+                reply_markup=kb.FiltersMenu
+            )
 
         elif previous_menu == "employment_menu":
             await message.answer(
-                text="Выберите занятость:",
+                text=LEXICON["select_employment"],
                 reply_markup=employment_types_keyboard(
                     types=employment_types,
                     selected=selected_employments
@@ -116,10 +122,21 @@ async def back_handler(message: Message, state: FSMContext):
             )
 
         elif previous_menu == "salary_menu":
-            await message.answer("Выберите оклад:", reply_markup=kb.SalaryMenu)
+            await message.answer(
+                text=LEXICON["select_salary"],
+                reply_markup=kb.SalaryMenu
+            )
 
         elif previous_menu == "duration_menu":
-            await message.answer("Выберите длительность:", reply_markup=kb.DurationMenu)
+            await message.answer(
+                text=LEXICON["select_duration"],
+                reply_markup=kb.DurationMenu
+            )
+
+        elif previous_menu == "profession_menu":
+            await message.answer(
+                text=LEXICON["input_professioon"]
+            )
     else:
         await message.answer("Главное меню", reply_markup=kb.StartMenu)
         user_history[user_id] = [kb.StartMenu]
