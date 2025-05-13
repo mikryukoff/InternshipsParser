@@ -1,11 +1,13 @@
-from fastapi import FastAPI, HTTPException, Query, Response
+from fastapi import FastAPI, HTTPException, Query
 from common.database import initialize_databases, Internships
 from fastapi.responses import FileResponse
 import tempfile
 import json
+import asyncio
 from typing import Optional, Dict, Any
 
 from common.logger import get_logger
+from common import TrudVsemParser, HHParser
 
 app = FastAPI()
 
@@ -22,7 +24,8 @@ class InternshipFilters:
         salary_to: Optional[int] = None,
         duration: Optional[str] = None,
         source_name: Optional[str] = None,
-        employment_type: Optional[str] = None
+        employment_type: Optional[str] = None,
+        description: Optional[str] = None
     ):
         self.filters = {
             'profession': profession,
@@ -31,7 +34,8 @@ class InternshipFilters:
             'salary_to': salary_to,
             'duration': duration,
             'source_name': source_name,
-            'employment_type': employment_type
+            'employment_type': employment_type,
+            'description': description
         }
 
     def get_clean_filters(self) -> Dict[str, Any]:
@@ -53,7 +57,8 @@ async def get_internships(
     salary_to: Optional[int] = Query(None, description="Максимальная зарплата"),
     duration: Optional[str] = Query(None, description="Длительность стажировки"),
     source_name: Optional[str] = Query(None, description="Название источника"),
-    employment_type: Optional[str] = Query(None, description="Тип занятости")
+    employment_type: Optional[str] = Query(None, description="Тип занятости"),
+    description: Optional[str] = Query(None, description="Описание стажировки")
 ):
     try:
         # Собираем фильтры
@@ -64,7 +69,8 @@ async def get_internships(
             salary_to=salary_to,
             duration=duration,
             source_name=source_name,
-            employment_type=employment_type
+            employment_type=employment_type,
+            description=description
         ).get_clean_filters()
 
         logger.info(filters)
@@ -115,3 +121,22 @@ async def get_internships(
 
     except Exception as e:
         raise HTTPException(500, detail=str(e))
+
+
+@app.put("/internships")
+async def update_db():
+    trudvsem_parser = TrudVsemParser()
+    hh_parser = HHParser()
+    logger.info("Updating DB")
+    try:
+        await asyncio.gather(
+            trudvsem_parser.get_some_info(),
+            hh_parser.get_internships()
+        )
+        return {"status": "success", "updated": True}
+    except Exception as e:
+        logger.error(f"Update failed: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Database update failed: {str(e)}"
+        )
