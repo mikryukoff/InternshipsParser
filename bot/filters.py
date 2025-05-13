@@ -34,3 +34,12 @@ class SalaryFilter(BaseFilter):
     async def __call__(self, message: Message) -> bool:
         match = re.match(r'^\s*(\d+)\s*[-–—]\s*(\d+)\s*$', message.text)
         return bool(match)
+
+
+class ProfessionFilter(BaseFilter):
+    "Класс, описывающий фильтр для отслеживания меню ввода профессии"
+    def __init__(self, professions: dict):
+        self.professions = professions
+
+    async def __call__(self, message: Message) -> bool:
+        return self.professions[message.from_user.id]
