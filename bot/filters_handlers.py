@@ -3,7 +3,7 @@ from aiogram.types import Message
 
 from bot.lexicon import LEXICON, LEXICON_COMMANDS
 import bot.menu_kb as kb
-from bot.filters import AnswerFilter, SalaryFilter
+from bot.filters import AnswerFilter, SalaryFilter, ProfessionFilter
 from bot.menu_handlers import add_to_history, add_to_query, remove_from_query
 from common.database import initialize_databases, EmploymentTypes
 from bot.menu_kb import employment_types_keyboard, sites_keyboard
@@ -14,7 +14,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 
 
 employment_types = []
-professions = False
+professions = {}
 
 # Инициализация роутера
 router: Router = Router()
@@ -84,18 +84,17 @@ async def select_all_sites(message: Message, state: FSMContext):
 # Обработка фильтра по профессии
 @router.message(F.text == LEXICON_COMMANDS["profession"])
 async def select_profession(message: Message):
-    global professions
-    professions = True
     user_id = message.from_user.id
+    professions[user_id] = True
 
     add_to_history(user_id, "employment_menu")
     await message.answer(text=LEXICON["input_profession"])
 
 
-@router.message(lambda x: True if professions else False)
+@router.message(ProfessionFilter(professions))
 async def process_profession_selection(message: Message, state: FSMContext):
-    global professions
-    professions = False
+    user_id = message.from_user.id
+    professions[user_id] = False
 
     await add_to_query(state, profession=message.text)
     return message.answer(
