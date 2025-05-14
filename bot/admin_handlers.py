@@ -8,6 +8,7 @@ import bot.menu_kb as kb
 from bot.menu_handlers import add_to_history
 from common import TrudVsemParser, HHParser
 from common.logger import get_logger
+from common.database import initialize_databases, Internships
 
 
 # Инициализация роутера
@@ -34,8 +35,12 @@ async def add_admin(message: Message):
 # Обработка кнопки "Обновить БД"
 @router.message(F.text == LEXICON_COMMANDS["update_db"])
 async def update_db(message: Message):
+    tables = await initialize_databases()
+    internships_table: Internships = tables[1]
+
     trudvsem_parser: TrudVsemParser = TrudVsemParser()
     hh_parser: HHParser = HHParser()
+
     await message.answer(text=LEXICON["processing"])
     logger.info("Updating DB")
     try:
@@ -43,6 +48,7 @@ async def update_db(message: Message):
             trudvsem_parser.get_some_info(),
             hh_parser.get_internships()
         )
+        await internships_table.update_internships()
         await message.answer(text=LEXICON["db_succeed_update"])
     except Exception as e:
         logger.error(str(e))

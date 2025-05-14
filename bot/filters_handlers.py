@@ -87,7 +87,7 @@ async def select_profession(message: Message):
     user_id = message.from_user.id
     professions[user_id] = True
 
-    add_to_history(user_id, "employment_menu")
+    add_to_history(user_id, "profession_menu")
     await message.answer(text=LEXICON["input_profession"])
 
 
@@ -182,17 +182,6 @@ async def process_salary_input(message: Message, state: FSMContext):
     await message.answer(
         text=f"Диапазон оклада {salary_from} - {salary_to} выбран",
         reply_markup=kb.FiltersMenu
-    )
-
-
-# Обработка меню длительности
-@router.message(F.text == LEXICON_COMMANDS["duration"])
-async def select_duration(message: Message):
-    user_id = message.from_user.id
-    add_to_history(user_id, "duration_menu")
-    await message.answer(
-        text=LEXICON["select_duration"],
-        reply_markup=kb.DurationMenu
     )
 
 

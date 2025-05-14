@@ -38,7 +38,6 @@ class TrudVsemParser:
                 company_name=company_name,
                 salary_from=salary_from,
                 salary_to=salary_to,
-                duration=None,
                 employment=employment,
                 source_name=self.source_name,
                 link=link,

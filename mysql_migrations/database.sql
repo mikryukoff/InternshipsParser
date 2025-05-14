@@ -46,12 +46,10 @@ CREATE TABLE internships (
     company_name TEXT,                       -- Название компании
     salary_from DECIMAL(10,2),               -- Минимальный уровень зарплаты
     salary_to DECIMAL(10,2),                 -- Максимальный уровень зарплаты
-    duration TEXT,                           -- Длительность стажировки
     source_name VARCHAR(100) NOT NULL,       -- Название источника (внешний ключ)
     link TEXT NOT NULL,                      -- Ссылка на вакансию
     description TEXT,                        -- Полное описание вакансии
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,          -- Дата создания записи
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,  -- Дата обновления
     FOREIGN KEY (source_name) REFERENCES sources(source_name)  -- Связь с источниками
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 

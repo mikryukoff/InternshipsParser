@@ -120,7 +120,6 @@ class Internships(ConnectTable):
         company_name: str,
         salary_from: int,
         salary_to: int,
-        duration: str,
         employment: str,
         source_name: str,
         link: str,
@@ -135,7 +134,6 @@ class Internships(ConnectTable):
             company_name: (str): Название компании, ищущей стажера.
             salary_from: (int): Минимальная зарплата.
             salary_to: (int): Максимальная зарплата.
-            duration: (str): Длительность стажировки.
             employment: (str): Тип занятости.
             source_name: (str): Название источника.
             link: (str): Ссылка на объявление.
@@ -144,8 +142,8 @@ class Internships(ConnectTable):
         async with self.connection_pool.acquire() as connection:
             async with connection.cursor() as cursor:
                 insert_internship = f"""
-                    INSERT INTO internships (title, profession, company_name, salary_from, salary_to, duration, source_name, link, description)
-                    VALUES ('{title}', '{profession}', '{company_name}', '{salary_from}', '{salary_to}', '{duration}', '{source_name}', '{link}', '{description}');
+                    INSERT INTO internships (title, profession, company_name, salary_from, salary_to, source_name, link, description)
+                    VALUES ('{title}', '{profession}', '{company_name}', '{salary_from}', '{salary_to}', '{source_name}', '{link}', '{description}');
                 """
                 await cursor.execute(insert_internship)
 
@@ -180,7 +178,6 @@ class Internships(ConnectTable):
                 company_name: (str): Название компании.
                 salary_from: (int): Минимальная зарплата.
                 salary_to: (int): Максимальная зарплата.
-                duration: (str): Длительность стажировки.
                 source_name: (str): Название источника.
                 employment_type: (str): Тип занятости
                 description: (str): Описание стажировки (что не попало под шаблон)
@@ -194,7 +191,7 @@ class Internships(ConnectTable):
                 base_query = """
                     SELECT
                         i.*,
-                        GROUP_CONCAT(et.name SEPARATOR ', ') AS employment_types
+                        GROUP_CONCAT(DISTINCT et.name ORDER BY et.name SEPARATOR ', ') AS employment_types
                     FROM internships i
                     LEFT JOIN internship_employment ie ON i.id = ie.internship_id
                     LEFT JOIN employment_types et ON ie.employment_id = et.id
@@ -234,32 +231,54 @@ class Internships(ConnectTable):
 
                 # Обработка текстовых фильтров с частичным совпадением
                 text_filters = {
-                    'profession': 'i.profession',
+                    'profession': ('i.profession', 'i.title'),  # Ищем в двух полях
                     'company_name': 'i.company_name',
-                    'duration': 'i.duration_text',
                     'source_name': 'i.source_name',
                     'description': 'i.description'
                 }
 
-                for key, column in text_filters.items():
+                for key, columns in text_filters.items():
                     value = kwargs.get(key)
                     if value:
-                        # Нормализация: удаление пробелов и приведение к нижнему регистру
+                        # Нормализация значения
                         if isinstance(value, (list, tuple)):
                             value = [v.strip().lower() for v in value]
                         else:
                             value = value.strip().lower()
 
-                        if isinstance(value, (list, tuple)):
-                            or_conditions = []
-                            for i, item in enumerate(value):
-                                param_name = f"{key}_like_{i}"
-                                or_conditions.append(f"{column} LIKE %({param_name})s")
-                                params[param_name] = f"%{item}%"
-                            conditions.append(f"({' OR '.join(or_conditions)})")
+                        # Для profession обрабатываем несколько колонок
+                        if key == 'profession':
+                            if isinstance(value, (list, tuple)):
+                                or_conditions = []
+                                for i, item in enumerate(value):
+                                    # Для каждого элемента создаем условия для обеих колонок
+                                    profession_cond = []
+                                    for col_idx, column in enumerate(columns):
+                                        param_name = f"{key}_like_{i}_{col_idx}"
+                                        profession_cond.append(f"{column} LIKE %({param_name})s")
+                                        params[param_name] = f"%{item}%"
+                                    or_conditions.append(f"({' OR '.join(profession_cond)})")
+                                conditions.append(f"({' OR '.join(or_conditions)})")
+                            else:
+                                profession_cond = []
+                                for col_idx, column in enumerate(columns):
+                                    param_name = f"{key}_like_{col_idx}"
+                                    profession_cond.append(f"{column} LIKE %({param_name})s")
+                                    params[param_name] = f"%{value}%"
+                                conditions.append(f"({' OR '.join(profession_cond)})")
+
+                        # Для остальных фильтров
                         else:
-                            conditions.append(f"{column} LIKE %({key}_like)s")
-                            params[f"{key}_like"] = f"%{value}%"
+                            if isinstance(value, (list, tuple)):
+                                or_conditions = []
+                                for i, item in enumerate(value):
+                                    param_name = f"{key}_like_{i}"
+                                    or_conditions.append(f"{columns} LIKE %({param_name})s")
+                                    params[param_name] = f"%{item}%"
+                                conditions.append(f"({' OR '.join(or_conditions)})")
+                            else:
+                                conditions.append(f"{columns} LIKE %({key}_like)s")
+                                params[f"{key}_like"] = f"%{value}%"
 
                 full_query = base_query
                 if conditions:
@@ -271,8 +290,22 @@ class Internships(ConnectTable):
 
         return result
 
-    async def update_internships(self, source_name: str) -> None:
-        pass
+    async def update_internships(self, days: int = 7) -> None:
+        """
+        Удаляет старые записи стажировок из базы данных.
+        Аргументы:
+            days: (int): Промежуток для определения устаревших записей.
+        """
+        async with self.connection_pool.acquire() as connection:
+            async with connection.cursor() as cursor:
+                # Удаляем записи старше указанного количества дней
+                delete_query = """
+                    DELETE FROM internships
+                    WHERE created_at < DATE_SUB(NOW(), INTERVAL %s DAY)
+                """
+                await cursor.execute(delete_query, (days,))
+                affected_rows = cursor.rowcount
+        logger.info(f"Удалено устаревших записей: {affected_rows}")
 
 
 class EmploymentTypes(ConnectTable):

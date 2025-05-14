@@ -25,18 +25,17 @@ StartMenu = ReplyKeyboardMarkup(
 FiltersMenu = ReplyKeyboardMarkup(
     keyboard=[
         [
-            KeyboardButton(text=LEXICON_COMMANDS["profession"]),
+            KeyboardButton(text=LEXICON_COMMANDS["profession"])
+        ],
+        [
             KeyboardButton(text=LEXICON_COMMANDS["salary"])
         ],
         [
-            KeyboardButton(text=LEXICON_COMMANDS["employment"]),
-            KeyboardButton(text=LEXICON_COMMANDS["duration"])
+            KeyboardButton(text=LEXICON_COMMANDS["employment"])
         ],
         [
+            KeyboardButton(text=LEXICON_COMMANDS["back"]),
             KeyboardButton(text=LEXICON_COMMANDS["export_file"])
-        ],
-        [
-            KeyboardButton(text=LEXICON_COMMANDS["back"])
         ]
     ],
     resize_keyboard=True,
@@ -76,26 +75,6 @@ SalaryMenu = ReplyKeyboardMarkup(
 )
 
 
-DurationMenu = ReplyKeyboardMarkup(
-    keyboard=[
-        [
-            KeyboardButton(text=LEXICON_COMMANDS["up_to_1_month"]),
-            KeyboardButton(text=LEXICON_COMMANDS["1_to_3_months"])
-        ],
-        [
-            KeyboardButton(text=LEXICON_COMMANDS["3_months_or_more"]),
-            KeyboardButton(text=LEXICON_COMMANDS["all_durations"])
-        ],
-        [
-            KeyboardButton(text=LEXICON_COMMANDS["back"]),
-            KeyboardButton(text=LEXICON_COMMANDS["next"])
-        ]
-    ],
-    resize_keyboard=True,
-    input_field_placeholder="Выберите длительность"
-)
-
-
 # Функция для генерации клавиатуры с сайтами
 def sites_keyboard(selected: list[str] = None) -> ReplyKeyboardMarkup:
     "Функция, генерирующая клавиатуру со списком сайтов."
@@ -120,8 +99,8 @@ def sites_keyboard(selected: list[str] = None) -> ReplyKeyboardMarkup:
         keyboard.append(row)
         step += 2
 
-    keyboard.append([KeyboardButton(text=LEXICON_COMMANDS["all_sites"]), KeyboardButton(text=LEXICON_COMMANDS["next"])])
-    keyboard.append([KeyboardButton(text=LEXICON_COMMANDS["back"])])
+    keyboard.append([KeyboardButton(text=LEXICON_COMMANDS["all_sites"])])
+    keyboard.append([KeyboardButton(text=LEXICON_COMMANDS["back"]), KeyboardButton(text=LEXICON_COMMANDS["next"])])
 
     return ReplyKeyboardMarkup(
         keyboard=keyboard,                         # Клавиатура с кнопками
