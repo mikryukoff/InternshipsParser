@@ -90,8 +90,8 @@ async def back_handler(message: Message, state: FSMContext):
         employment_types_table: EmploymentTypes = tables[2]
         employment_types = await employment_types_table.select_employment_types()
 
-        selected_sites = filters.get("source_name", [])
-        selected_employments = filters.get("employment_type", [])
+    selected_sites = filters.get("source_name", [])
+    selected_employments = filters.get("employment_type", [])
 
     if previous_menu:
         if previous_menu == "start":
@@ -125,12 +125,6 @@ async def back_handler(message: Message, state: FSMContext):
             await message.answer(
                 text=LEXICON["select_salary"],
                 reply_markup=kb.SalaryMenu
-            )
-
-        elif previous_menu == "duration_menu":
-            await message.answer(
-                text=LEXICON["select_duration"],
-                reply_markup=kb.DurationMenu
             )
 
         elif previous_menu == "profession_menu":
@@ -174,8 +168,8 @@ async def export_file(message: Message, state: FSMContext):
         # Формируем структуру данных
         headers = [
             'id', 'title', 'profession', 'company_name', 'salary_from',
-            'salary_to', 'duration', 'source_name', 'link',
-            'description', 'created_at', 'updated_at', 'employment_types'
+            'salary_to', 'source_name', 'link',
+            'description', 'created_at', 'employment_types'
         ]
 
         json_data = []

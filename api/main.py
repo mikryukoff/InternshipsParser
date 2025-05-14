@@ -22,7 +22,6 @@ class InternshipFilters:
         company_name: Optional[str] = None,
         salary_from: Optional[int] = None,
         salary_to: Optional[int] = None,
-        duration: Optional[str] = None,
         source_name: Optional[str] = None,
         employment_type: Optional[str] = None,
         description: Optional[str] = None
@@ -32,7 +31,6 @@ class InternshipFilters:
             'company_name': company_name,
             'salary_from': salary_from,
             'salary_to': salary_to,
-            'duration': duration,
             'source_name': source_name,
             'employment_type': employment_type,
             'description': description
@@ -55,7 +53,6 @@ async def get_internships(
     company_name: Optional[str] = Query(None, description="Фильтр по названию компании"),
     salary_from: Optional[int] = Query(None, description="Минимальная зарплата"),
     salary_to: Optional[int] = Query(None, description="Максимальная зарплата"),
-    duration: Optional[str] = Query(None, description="Длительность стажировки"),
     source_name: Optional[str] = Query(None, description="Название источника"),
     employment_type: Optional[str] = Query(None, description="Тип занятости"),
     description: Optional[str] = Query(None, description="Описание стажировки")
@@ -67,7 +64,6 @@ async def get_internships(
             company_name=company_name,
             salary_from=salary_from,
             salary_to=salary_to,
-            duration=duration,
             source_name=source_name,
             employment_type=employment_type,
             description=description
@@ -83,8 +79,8 @@ async def get_internships(
         # Формируем данные
         headers = [
             'id', 'title', 'profession', 'company_name', 'salary_from',
-            'salary_to', 'duration', 'source_name', 'link',
-            'description', 'created_at', 'updated_at', 'employment_types'
+            'salary_to', 'source_name', 'link',
+            'description', 'created_at', 'employment_types'
         ]
 
         data = []

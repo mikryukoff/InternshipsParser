@@ -135,7 +135,6 @@ class HHParser:
                 company_name=employer.get('name', ''),
                 salary_from=float(salary_from),
                 salary_to=float(salary_to),
-                duration=None,
                 employment=vacancy_data.get('employment', {}).get('name', ''),
                 source_name=self.source_name,
                 link=vacancy_data.get('alternate_url', ''),

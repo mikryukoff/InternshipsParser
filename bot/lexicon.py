@@ -17,7 +17,6 @@ LEXICON_COMMANDS: dict[str, str] = {
     "profession": "Профессия",
     "salary": "Оклад",
     "employment": "Занятость",
-    "duration": "Длительность",
 
     "full_time": "Полная",
     "part_time": "Неполная",
@@ -25,13 +24,7 @@ LEXICON_COMMANDS: dict[str, str] = {
     "all_employment": "Выбрать все",
 
     "no_salary": "Без оклада",
-    "with_salary": "Есть оклад",
-
-    "up_to_1_month": "До 1 месяца",
-    "1_to_3_months": "От 1 до 3 месяцев",
-    "3_months_or_more": "От 3 месяцев",
-    "all_durations": "Выбрать все"
-
+    "with_salary": "Есть оклад"
 }
 
 # Словарь для текстовых ответов бота по запросам,
@@ -49,7 +42,6 @@ LEXICON: dict[str, str] = {
     "select_employment": "Выберите занятость стажировки:",
     "select_salary": "Выберите тип:",
     "input_salary": 'Введите сумму оклада (пример: 10000 - 50000):',
-    "select_duration": "Выберите период стажировки:",
     "selected_option": "Выбрано: {}",
     "selected_site": "Выбранный сайт: {}",
     "main_menu": "Главное меню",
