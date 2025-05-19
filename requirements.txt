@@ -55,3 +55,5 @@ websocket-client==1.8.0
 websockets==15.0.1
 wsproto==1.2.0
 yarl==1.19.0
+aiohttp-socks==0.10.1
+aiohttp-retry==2.8.3
