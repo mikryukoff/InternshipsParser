@@ -68,7 +68,6 @@ class TrudVsemParser:
                 company_name=company,
                 salary_from=float(salary_from),
                 salary_to=float(salary_to),
-                duration=None,
                 employment=vacancy_data.get("employment", ""),
                 source_name=self.source_name,
                 link=link,
