@@ -8,8 +8,7 @@
 
 **1. Склонируйте репозиторий:**
 ```bash
-git clone https://github.com/mikryukoff/StudentBot.git
-cd StudentBot
+git clone git@github.com:mikryukoff/InternshipsParser.git
 ```
 
 **2. Сборка и запуск Docker'а:**

@@ -1,11 +1,11 @@
 from aiogram import Router, F
 from aiogram.types import Message
 
-from lexicon import LEXICON, LEXICON_COMMANDS
-import keyboards.menu_kb as kb
-from handlers.menu_handlers import add_to_history
-from parsers import TrudVsemParser, HHParser
-from logger import get_logger
+from bot.lexicon import LEXICON, LEXICON_COMMANDS
+import bot.menu_kb as kb
+from bot.menu_handlers import add_to_history
+from common import TrudVsemParser, HHParser
+from common.logger import get_logger
 
 
 # Инициализация роутера

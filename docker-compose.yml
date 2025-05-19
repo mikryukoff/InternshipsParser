@@ -20,10 +20,12 @@ services:
       timeout: 3s
       retries: 5
 
-  app:
-    build: .
-    image: parser_app
-    container_name: parser
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile.bot
+    image: parser-bot
+    container_name: bot
     env_file: .env
     ports:
       - "5000:5000"
@@ -33,12 +35,28 @@ services:
     networks:
       - app-network
 
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    image: parser-api
+    container_name: api
+    env_file: .env
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - app-network 
+
   adminer:
     image: adminer
+    container_name: adminer
     ports:
       - "8080:8080"  # Веб-интерфейс через порт 8080
     networks:
-    - app-network
+      - app-network
 
 volumes:
   mysql_data:

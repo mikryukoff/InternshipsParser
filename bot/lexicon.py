@@ -9,7 +9,7 @@ LEXICON_COMMANDS: dict[str, str] = {
 
     "add_admin": "Добавить администратора",
 
-    "sites": ["hh.ru", "trudvsem.ru", "Rabota.ru", "SuperJob.ru"],
+    "sites": ["hh.ru", "trudvsem.ru"],
     "all_sites": "Все сайты",
     "next": "Далее",
     "back": "Назад",

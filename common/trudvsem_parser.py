@@ -3,8 +3,8 @@ import aiohttp
 import asyncio
 from typing import Optional
 
-from database import initialize_databases, Internships
-from logger import get_logger
+from common.database import initialize_databases, Sources, Internships
+from common.logger import get_logger
 
 logger = get_logger(__name__)
 

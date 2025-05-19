@@ -1,6 +1,6 @@
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
-from lexicon import LEXICON_COMMANDS
-from logger import get_logger
+from bot.lexicon import LEXICON_COMMANDS
+from common.logger import get_logger
 
 
 # Инициализация логгера

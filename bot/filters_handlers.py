@@ -1,12 +1,12 @@
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 
-from lexicon import LEXICON, LEXICON_COMMANDS
-import keyboards.menu_kb as kb
-from filters import AnswerFilter
-from handlers.menu_handlers import add_to_history, add_to_query, remove_from_query
-from database import initialize_databases, EmploymentTypes
-from keyboards import employment_types_keyboard, sites_keyboard
+from bot.lexicon import LEXICON, LEXICON_COMMANDS
+import bot.menu_kb as kb
+from bot.filters import AnswerFilter
+from bot.menu_handlers import add_to_history, add_to_query, remove_from_query
+from common.database import initialize_databases, EmploymentTypes
+from bot.menu_kb import employment_types_keyboard, sites_keyboard
 
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.fsm.context import FSMContext

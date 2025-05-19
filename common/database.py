@@ -1,7 +1,9 @@
 import aiomysql
+from contextlib import asynccontextmanager
+from typing import AsyncGenerator
 import asyncio
-from config.config import load_config, Config
-from logger import get_logger
+from common.config import load_config, Config
+from common.logger import get_logger
 
 
 # Определяем конфиг
@@ -208,7 +210,7 @@ class Internships(ConnectTable):
                 if employment_types:
                     if isinstance(employment_types, str):
                         employment_types = [employment_types]
-                    
+
                     placeholders = ", ".join([f"%(_employment_type_{i})s" for i in range(len(employment_types))])
                     conditions.append(f"""
                         EXISTS (
