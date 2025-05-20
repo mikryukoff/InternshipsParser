@@ -185,110 +185,225 @@ class Internships(ConnectTable):
         Возвращает:
             tuple: Кортеж с данными стажировок и их типами занятости
         """
-        logger.info(kwargs)
+
+        base_query = """
+            SELECT
+                i.*,
+                GROUP_CONCAT(DISTINCT et.name ORDER BY et.name SEPARATOR ', ') AS employment_types
+            FROM internships i
+            LEFT JOIN internship_employment ie ON i.id = ie.internship_id
+            LEFT JOIN employment_types et ON ie.employment_id = et.id
+            WHERE 1=1
+        """
+        params = {}
+        conditions = []
+
+        employment_cond = self._build_employment_condition(
+            kwargs.pop('employment_type', []),
+            params
+        )
+        if employment_cond:
+            conditions.append(employment_cond)
+
+        conditions += self._build_salary_conditions(kwargs, params)
+
+        conditions += self._build_text_conditions(params, kwargs)
+
+        return await self._execute_query(base_query, params, conditions)
+
+    async def select_internship_data_by_keywords(self, **kwargs) -> tuple:
+        """
+        Получает данные о стажировке с типами занятости по ключевым словам c поддержкой исключений.
+
+        Аргументы:
+            kwargs: Возможные фильтры:
+                keywords: (list): Ключевые слова для поиска. Слова, начинающиеся с '-', исключают записи.
+                salary_from: (int): Минимальная зарплата.
+                salary_to: (int): Максимальная зарплата.
+                employment_type: (str): Тип занятости
+
+        Возвращает:
+            tuple: Кортеж с данными стажировок и их типами занятости.
+        """
+
+        base_query = """
+            SELECT
+                i.*,
+                GROUP_CONCAT(DISTINCT et.name ORDER BY et.name SEPARATOR ', ') AS employment_types
+            FROM internships i
+            LEFT JOIN internship_employment ie ON i.id = ie.internship_id
+            LEFT JOIN employment_types et ON ie.employment_id = et.id
+            WHERE 1=1
+        """
+        params = {}
+        conditions = []
+
+        include, exclude = self._parse_keywords(kwargs.pop('keywords', ''))
+        text_columns = [
+            'i.profession', 'i.title', 'i.company_name',
+            'i.source_name', 'i.description'
+        ]
+
+        logger.debug("Include conditions: %s", include)
+        logger.debug("Exclude conditions: %s", exclude)
+
+        include_conds = self._build_include_conditions(include, text_columns, params)
+        if include_conds:
+            conditions.append(include_conds)
+
+        exclude_conds = self._build_exclude_conditions(exclude, text_columns, params)
+        if exclude_conds:
+            conditions.append(exclude_conds)
+
+        employment_cond = self._build_employment_condition(
+            kwargs.pop('employment_type', []),
+            params
+        )
+        if employment_cond:
+            conditions.append(employment_cond)
+
+        conditions += self._build_salary_conditions(kwargs, params)
+
+        return await self._execute_query(base_query, params, conditions)
+
+    def _parse_keywords(self, keywords: str) -> tuple:
+        """Парсит ключевые слова на включающие и исключающие."""
+        include = []
+        exclude = []
+
+        for word in keywords:
+            word = word.strip().lower()
+            if not word:
+                continue
+            if word.startswith('-'):
+                exclude.append(word[1:])
+            else:
+                include.append(word)
+
+        return include, exclude
+
+    async def _execute_query(
+        self,
+        base_query: str,
+        params: dict,
+        conditions: list,
+        limit: int = 100,
+        offset: int = 0
+    ) -> tuple:
+        """Выполняет SQL-запрос с параметрами."""
+        full_query = base_query
+        if conditions:
+            full_query += " AND " + " AND ".join(conditions)
+        full_query += " GROUP BY i.id LIMIT %(limit)s OFFSET %(offset)s"
+
+        params.update({
+            'limit': limit,
+            'offset': offset
+        })
+
         async with self.connection_pool.acquire() as connection:
             async with connection.cursor() as cursor:
-                base_query = """
-                    SELECT
-                        i.*,
-                        GROUP_CONCAT(DISTINCT et.name ORDER BY et.name SEPARATOR ', ') AS employment_types
-                    FROM internships i
-                    LEFT JOIN internship_employment ie ON i.id = ie.internship_id
-                    LEFT JOIN employment_types et ON ie.employment_id = et.id
-                    WHERE 1=1
-                """
-
-                params = {}
-                conditions = []
-                employment_types = kwargs.pop('employment_type', [])
-
-                # Обработка нескольких типов занятости
-                if employment_types:
-                    if isinstance(employment_types, str):
-                        employment_types = [employment_types]
-
-                    placeholders = ", ".join([f"%(_employment_type_{i})s" for i in range(len(employment_types))])
-                    conditions.append(f"""
-                        EXISTS (
-                            SELECT 1
-                            FROM internship_employment ie2
-                            JOIN employment_types et2 ON ie2.employment_id = et2.id
-                            WHERE ie2.internship_id = i.id
-                            AND et2.name IN ({placeholders})
-                        )
-                    """)
-                    for i, emp_type in enumerate(employment_types):
-                        params[f"_employment_type_{i}"] = emp_type
-
-                # Обработка зарплат
-                if 'salary_from' in kwargs and kwargs['salary_from'] is not None:
-                    conditions.append("i.salary_from >= %(salary_from)s")
-                    params['salary_from'] = kwargs.pop('salary_from')
-
-                if 'salary_to' in kwargs and kwargs['salary_to'] is not None:
-                    conditions.append("i.salary_to <= %(salary_to)s")
-                    params['salary_to'] = kwargs.pop('salary_to')
-
-                # Обработка текстовых фильтров с частичным совпадением
-                text_filters = {
-                    'profession': ('i.profession', 'i.title'),  # Ищем в двух полях
-                    'company_name': 'i.company_name',
-                    'source_name': 'i.source_name',
-                    'description': 'i.description'
-                }
-
-                for key, columns in text_filters.items():
-                    value = kwargs.get(key)
-                    if value:
-                        # Нормализация значения
-                        if isinstance(value, (list, tuple)):
-                            value = [v.strip().lower() for v in value]
-                        else:
-                            value = value.strip().lower()
-
-                        # Для profession обрабатываем несколько колонок
-                        if key == 'profession':
-                            if isinstance(value, (list, tuple)):
-                                or_conditions = []
-                                for i, item in enumerate(value):
-                                    # Для каждого элемента создаем условия для обеих колонок
-                                    profession_cond = []
-                                    for col_idx, column in enumerate(columns):
-                                        param_name = f"{key}_like_{i}_{col_idx}"
-                                        profession_cond.append(f"{column} LIKE %({param_name})s")
-                                        params[param_name] = f"%{item}%"
-                                    or_conditions.append(f"({' OR '.join(profession_cond)})")
-                                conditions.append(f"({' OR '.join(or_conditions)})")
-                            else:
-                                profession_cond = []
-                                for col_idx, column in enumerate(columns):
-                                    param_name = f"{key}_like_{col_idx}"
-                                    profession_cond.append(f"{column} LIKE %({param_name})s")
-                                    params[param_name] = f"%{value}%"
-                                conditions.append(f"({' OR '.join(profession_cond)})")
-
-                        # Для остальных фильтров
-                        else:
-                            if isinstance(value, (list, tuple)):
-                                or_conditions = []
-                                for i, item in enumerate(value):
-                                    param_name = f"{key}_like_{i}"
-                                    or_conditions.append(f"{columns} LIKE %({param_name})s")
-                                    params[param_name] = f"%{item}%"
-                                conditions.append(f"({' OR '.join(or_conditions)})")
-                            else:
-                                conditions.append(f"{columns} LIKE %({key}_like)s")
-                                params[f"{key}_like"] = f"%{value}%"
-
-                full_query = base_query
-                if conditions:
-                    full_query += " AND " + " AND ".join(conditions)
-                full_query += " GROUP BY i.id"
-
                 await cursor.execute(full_query, params)
-                result = await cursor.fetchall()
+                return await cursor.fetchall()
 
-        return result
+    def _build_employment_condition(self, employment_types: list, params: dict) -> str:
+        """Формирует условие для типов занятости."""
+        if not employment_types:
+            return ""
+
+        placeholders = ", ".join([f"%(_employment_type_{i})s" for i in range(len(employment_types))])
+        for i, emp_type in enumerate(employment_types):
+            params[f"_employment_type_{i}"] = emp_type
+
+        return f"""
+            EXISTS (
+                SELECT 1
+                FROM internship_employment ie2
+                JOIN employment_types et2 ON ie2.employment_id = et2.id
+                WHERE ie2.internship_id = i.id
+                AND et2.name IN ({placeholders})
+            )
+        """
+
+    def _build_salary_conditions(self, kwargs: dict, params: dict) -> list:
+        """Добавляет условия по зарплате."""
+        conditions = []
+        if 'salary_from' in kwargs and kwargs['salary_from'] is not None:
+            conditions.append("i.salary_from >= %(salary_from)s")
+            params['salary_from'] = kwargs.pop('salary_from')
+
+        if 'salary_to' in kwargs and kwargs['salary_to'] is not None:
+            conditions.append("i.salary_to <= %(salary_to)s")
+            params['salary_to'] = kwargs.pop('salary_to')
+
+        return conditions
+
+    def _build_text_conditions(self, params: dict, filters: dict) -> list:
+        """Обрабатывает текстовые фильтры."""
+        conditions = []
+        text_columns = {
+            'profession': ['i.profession', 'i.title'],
+            'company_name': ['i.company_name'],
+            'source_name': ['i.source_name'],
+            'description': ['i.description']
+        }
+
+        for key, columns in text_columns.items():
+            value = filters.get(key)
+            if not value:
+                continue
+
+            # Нормализация значения
+            if isinstance(value, (list, tuple)):
+                value = [v.strip().lower() for v in value]
+            else:
+                value = value.strip().lower()
+
+            # Построение условий
+            or_conditions = []
+            for i, item in enumerate([value] if not isinstance(value, (list, tuple)) else value):
+                for col_idx, column in enumerate(columns):
+                    param_name = f"{key}_like_{i}_{col_idx}"
+                    or_conditions.append(f"{column} LIKE %({param_name})s")
+                    params[param_name] = f"%{item}%"
+
+            conditions.append(f"({' OR '.join(or_conditions)})")
+
+        return conditions
+
+    def _build_include_conditions(self, words: list, columns: list, params: dict) -> str:
+        """Строит условия для включения ключевых слов (логическое ИЛИ между словами)."""
+        if not words:
+            return ""
+
+        conditions = []
+        for idx, word in enumerate(words):
+            word_conds = []
+            for col_idx, column in enumerate(columns):
+                param_name = f"inc_{idx}_{col_idx}"
+                word_conds.append(f"{column} LIKE %({param_name})s")
+                params[param_name] = f"%{word}%"
+            conditions.append(f"({' OR '.join(word_conds)})")
+
+        # Объединяем условия через OR
+        return f"({' OR '.join(conditions)})" if conditions else ""
+
+    def _build_exclude_conditions(self, words: list, columns: list, params: dict) -> str:
+        """Строит условия для исключения ключевых слов (логическое И между словами)."""
+        if not words:
+            return ""
+
+        conditions = []
+        for idx, word in enumerate(words):
+            word_conds = []
+            for col_idx, column in enumerate(columns):
+                param_name = f"exc_{idx}_{col_idx}"
+                word_conds.append(f"{column} NOT LIKE %({param_name})s")
+                params[param_name] = f"%{word}%"
+            conditions.append(f"({' AND '.join(word_conds)})")
+
+        # Объединяем условия через AND
+        return f"({' AND '.join(conditions)})" if conditions else ""
 
     async def update_internships(self, days: int = 7) -> None:
         """
