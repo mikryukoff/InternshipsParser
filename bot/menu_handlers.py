@@ -13,7 +13,7 @@ from bot.lexicon import LEXICON, LEXICON_COMMANDS
 import bot.menu_kb as kb
 from bot.menu_kb import sites_keyboard, employment_types_keyboard
 
-from common.database import initialize_databases, Sources, Internships, EmploymentTypes
+from common.database import initialize_databases, Internships, EmploymentTypes
 
 from common.logger import get_logger
 

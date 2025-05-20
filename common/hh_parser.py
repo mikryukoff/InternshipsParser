@@ -11,11 +11,14 @@ from fake_useragent import UserAgent
 from common.database import initialize_databases, Internships
 from common.logger import get_logger
 
+
 logger = get_logger(__name__)
+
 
 def clean_html(text: str) -> str:
     """Очистка текста от HTML тегов"""
     return re.sub(r'<[^>]+>', '', text).replace("\n", " ").strip() if text else ""
+
 
 @dataclass
 class HHParser:
@@ -39,10 +42,16 @@ class HHParser:
         """Получение следующего прокси с ротацией"""
         proxy = self.proxy_urls[self.current_proxy_idx]
         self.current_proxy_idx = (self.current_proxy_idx + 1) % len(self.proxy_urls)
-        #logger.warning(f"Используется прокси: {proxy}")
+        # logger.warning(f"Используется прокси: {proxy}")
         return proxy
 
-    async def make_request(self, url: str, params: dict, headers: dict, retry_options: ExponentialRetry) -> Optional[dict]:
+    async def make_request(
+        self,
+        url: str,
+        params: dict,
+        headers: dict,
+        retry_options: ExponentialRetry
+    ) -> Optional[dict]:
         """Выполнение запроса с обработкой 403 и сменой прокси"""
         for attempt in range(len(self.proxy_urls)):
             proxy = self.get_next_proxy()
@@ -113,7 +122,13 @@ class HHParser:
 
         logger.info("Сбор стажировок с HH завершен.")
 
-    async def process_vacancies(self, vacancies: list, internships_table: Internships, headers, retry_options):
+    async def process_vacancies(
+        self,
+        vacancies: list,
+        internships_table: Internships,
+        headers,
+        retry_options
+    ):
         batch_size = 5
         delay = 1.2
 
@@ -124,7 +139,13 @@ class HHParser:
             if i + batch_size < len(vacancies):
                 await asyncio.sleep(delay)
 
-    async def process_vacancy(self, item: dict, internships_table: Internships, headers, retry_options):
+    async def process_vacancy(
+        self,
+        item: dict,
+        internships_table: Internships,
+        headers,
+        retry_options
+    ):
         """Обработка и сохранение одной вакансии"""
         vacancy_id = item.get('id')
         for attempt in range(len(self.proxy_urls)):
@@ -162,7 +183,7 @@ class HHParser:
                             source_name=self.source_name,
                             link=vacancy_data.get('alternate_url', ''),
                             description=clean_html(vacancy_data.get('description', '')))
-                        
+
                         logger.info(f"Успешно обработана вакансия [{vacancy_id}] \"{vacancy_data.get('name', '')}\" через {proxy}")
                         return
             except Exception as e:
@@ -170,6 +191,7 @@ class HHParser:
                 await asyncio.sleep(1)
 
         logger.error(f"Не удалось обработать вакансию {vacancy_id} — все прокси недоступны.")
+
 
 if __name__ == "__main__":
     parser = HHParser()
