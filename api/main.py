@@ -126,7 +126,7 @@ async def update_db():
     logger.info("Updating DB")
     try:
         await asyncio.gather(
-            trudvsem_parser.get_some_info(),
+            trudvsem_parser.get_internships(),
             hh_parser.get_internships()
         )
         return {"status": "success", "updated": True}
