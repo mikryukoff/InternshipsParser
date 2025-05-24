@@ -306,14 +306,43 @@ class Internships(ConnectTable):
                 await cursor.execute(full_query, params)
                 return await cursor.fetchall()
 
+    def _build_like_conditions(
+        self,
+        values: str | list[str],
+        columns: list[str],
+        params: dict,
+        param_prefix: str
+    ) -> str:
+        """Общая функция для построения условий LIKE."""
+        if not values:
+            return ""
+
+        if isinstance(values, str):
+            values = [values]
+
+        conditions = []
+        for idx, value in enumerate(values):
+            value = value.strip().lower()
+            column_conditions = []
+            for col_idx, column in enumerate(columns):
+                param_name = f"{param_prefix}_{idx}_{col_idx}"
+                column_conditions.append(f"{column} LIKE %({param_name})s")
+                params[param_name] = f"%{value}%"
+            conditions.append(f"({' OR '.join(column_conditions)})")
+
+        return " OR ".join(conditions)
+
     def _build_employment_condition(self, employment_types: list, params: dict) -> str:
-        """Формирует условие для типов занятости."""
+        """Условие для занятости с использованием общей функции."""
         if not employment_types:
             return ""
 
-        placeholders = ", ".join([f"%(_employment_type_{i})s" for i in range(len(employment_types))])
-        for i, emp_type in enumerate(employment_types):
-            params[f"_employment_type_{i}"] = emp_type
+        conditions_str = self._build_like_conditions(
+            values=employment_types,
+            columns=["et2.name"],
+            params=params,
+            param_prefix="employment_type"
+        )
 
         return f"""
             EXISTS (
@@ -321,9 +350,36 @@ class Internships(ConnectTable):
                 FROM internship_employment ie2
                 JOIN employment_types et2 ON ie2.employment_id = et2.id
                 WHERE ie2.internship_id = i.id
-                AND et2.name IN ({placeholders})
+                AND ({conditions_str})
             )
         """
+
+    def _build_text_conditions(self, params: dict, filters: dict) -> list:
+        """Унифицированная обработка текстовых фильтров."""
+        text_columns = {
+            'profession': ['i.profession', 'i.title'],
+            'company_name': ['i.company_name'],
+            'source_name': ['i.source_name'],
+            'description': ['i.description']
+        }
+
+        conditions = []
+        for key, columns in text_columns.items():
+            value = filters.get(key)
+            if not value:
+                continue
+
+            conditions_str = self._build_like_conditions(
+                values=value,
+                columns=columns,
+                params=params,
+                param_prefix=f"{key}_like"
+            )
+
+            if conditions_str:
+                conditions.append(f"({conditions_str})")
+
+        return conditions
 
     def _build_salary_conditions(self, kwargs: dict, params: dict) -> list:
         """Добавляет условия по зарплате."""
@@ -335,39 +391,6 @@ class Internships(ConnectTable):
         if 'salary_to' in kwargs and kwargs['salary_to'] is not None:
             conditions.append("i.salary_to <= %(salary_to)s")
             params['salary_to'] = kwargs.pop('salary_to')
-
-        return conditions
-
-    def _build_text_conditions(self, params: dict, filters: dict) -> list:
-        """Обрабатывает текстовые фильтры."""
-        conditions = []
-        text_columns = {
-            'profession': ['i.profession', 'i.title'],
-            'company_name': ['i.company_name'],
-            'source_name': ['i.source_name'],
-            'description': ['i.description']
-        }
-
-        for key, columns in text_columns.items():
-            value = filters.get(key)
-            if not value:
-                continue
-
-            # Нормализация значения
-            if isinstance(value, (list, tuple)):
-                value = [v.strip().lower() for v in value]
-            else:
-                value = value.strip().lower()
-
-            # Построение условий
-            or_conditions = []
-            for i, item in enumerate([value] if not isinstance(value, (list, tuple)) else value):
-                for col_idx, column in enumerate(columns):
-                    param_name = f"{key}_like_{i}_{col_idx}"
-                    or_conditions.append(f"{column} LIKE %({param_name})s")
-                    params[param_name] = f"%{item}%"
-
-            conditions.append(f"({' OR '.join(or_conditions)})")
 
         return conditions
 

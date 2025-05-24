@@ -13,13 +13,7 @@ logger = get_logger(__name__)
 class AnswerFilter(BaseFilter):
     "Класс, описывающий фильтр для отслеживания нажатия по фильтрам."
     def __init__(self):
-        self.options = [
-            LEXICON_COMMANDS["full_time"],
-            LEXICON_COMMANDS["part_time"],
-            LEXICON_COMMANDS["remote_employment"],
-            LEXICON_COMMANDS["all_employment"],
-            LEXICON_COMMANDS["no_salary"]
-        ]
+        self.options = [LEXICON_COMMANDS["no_salary"]]
 
     async def __call__(self, message: Message) -> bool:
         return message.text in self.options

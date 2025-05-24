@@ -98,7 +98,8 @@ async def process_profession_selection(message: Message, state: FSMContext):
 
     await add_to_query(state, profession=message.text)
     return message.answer(
-        text=f'Профессии, включающие слова "{message.text}", добавлены'
+        text=f'Профессии "{message.text}", добавлены',
+        reply_markup=kb.FiltersMenu
     )
 
 
