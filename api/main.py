@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException, Query
 from common.database import initialize_databases, Internships
 from fastapi.responses import FileResponse
+from fastapi.openapi.utils import get_openapi
 import tempfile
 import json
 import asyncio
@@ -173,3 +174,19 @@ async def update_db():
             status_code=500,
             detail=f"Database update failed: {str(e)}"
         )
+
+
+def custom_openapi():
+    if app.openapi_schema:
+        return app.openapi_schema
+    openapi_schema = get_openapi(
+        title="Internships Parser API",
+        version="1.0.0",
+        description="Документация к API парсера стажировок",
+        routes=app.routes,
+    )
+    app.openapi_schema = openapi_schema
+    return app.openapi_schema
+
+
+app.openapi = custom_openapi
