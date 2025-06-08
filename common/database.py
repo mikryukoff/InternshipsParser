@@ -209,7 +209,9 @@ class Internships(ConnectTable):
 
         conditions += self._build_text_conditions(params, kwargs)
 
-        return await self._execute_query(base_query, params, conditions)
+        return await self._execute_query(
+            base_query, params, conditions, limit=10000
+        )
 
     async def select_internship_data_by_keywords(self, **kwargs) -> tuple:
         """

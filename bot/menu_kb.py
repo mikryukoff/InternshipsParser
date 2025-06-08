@@ -11,7 +11,7 @@ StartMenu = ReplyKeyboardMarkup(
     keyboard=[
         [
             KeyboardButton(text=LEXICON_COMMANDS["filters"]),
-            KeyboardButton(text=LEXICON_COMMANDS["admin_panel"])
+            KeyboardButton(text=LEXICON_COMMANDS["update_db"])
         ],
         [
             KeyboardButton(text=LEXICON_COMMANDS["export_file"])
@@ -25,13 +25,15 @@ StartMenu = ReplyKeyboardMarkup(
 FiltersMenu = ReplyKeyboardMarkup(
     keyboard=[
         [
-            KeyboardButton(text=LEXICON_COMMANDS["profession"])
-        ],
-        [
+            KeyboardButton(text=LEXICON_COMMANDS["profession"]),
             KeyboardButton(text=LEXICON_COMMANDS["salary"])
         ],
         [
-            KeyboardButton(text=LEXICON_COMMANDS["employment"])
+            KeyboardButton(text=LEXICON_COMMANDS["employment"]),
+            KeyboardButton(text=LEXICON_COMMANDS["keywords"])
+        ],
+        [
+            KeyboardButton(text=LEXICON_COMMANDS["clear_filters"])
         ],
         [
             KeyboardButton(text=LEXICON_COMMANDS["back"]),
@@ -72,6 +74,23 @@ SalaryMenu = ReplyKeyboardMarkup(
     ],
     resize_keyboard=True,
     input_field_placeholder="Выберите вариант оклада"
+)
+
+
+ExportFileMenu = ReplyKeyboardMarkup(
+    keyboard=[
+        [
+            KeyboardButton(text="csv"),
+            KeyboardButton(text="txt"),
+            KeyboardButton(text="json")
+        ],
+        [
+            KeyboardButton(text=LEXICON_COMMANDS["back"]),
+            KeyboardButton(text=LEXICON_COMMANDS["next"])
+        ]
+    ],
+    resize_keyboard=True,
+    input_field_placeholder="Выберите тип файла"
 )
 
 

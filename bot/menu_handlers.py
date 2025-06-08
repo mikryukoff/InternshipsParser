@@ -1,6 +1,7 @@
 import json
 import tempfile
 import os
+import csv
 
 from aiogram.types import FSInputFile
 from aiogram import Router, F
@@ -52,7 +53,9 @@ async def remove_from_query(state: FSMContext, **kwargs):
             values = values.split(",")
 
         if key in current_filters:
-            current_filters[key] = [v for v in current_filters[key] if v not in values]
+            current_filters[key] = [
+                v for v in current_filters[key] if v not in values
+            ]
             if not current_filters[key]:
                 del current_filters[key]
 
@@ -85,13 +88,7 @@ async def back_handler(message: Message, state: FSMContext):
     # Получаем текущие данные из состояния
     data = await state.get_data()
     filters = data.get("filters", {})
-    if filters:
-        tables = await initialize_databases()
-        employment_types_table: EmploymentTypes = tables[2]
-        employment_types = await employment_types_table.select_employment_types()
-
     selected_sites = filters.get("source_name", [])
-    selected_employments = filters.get("employment_type", [])
 
     if previous_menu:
         if previous_menu == "start":
@@ -111,28 +108,10 @@ async def back_handler(message: Message, state: FSMContext):
                 text=LEXICON["select_filters"],
                 reply_markup=kb.FiltersMenu
             )
-
-        elif previous_menu == "employment_menu":
-            await message.answer(
-                text=LEXICON["select_employment"],
-                reply_markup=employment_types_keyboard(
-                    types=employment_types,
-                    selected=selected_employments
-                )
-            )
-
-        elif previous_menu == "salary_menu":
-            await message.answer(
-                text=LEXICON["select_salary"],
-                reply_markup=kb.SalaryMenu
-            )
-
-        elif previous_menu == "profession_menu":
-            await message.answer(
-                text=LEXICON["input_professioon"]
-            )
     else:
-        await message.answer("Главное меню", reply_markup=kb.StartMenu)
+        await message.answer(
+            text=LEXICON["main_menu"], reply_markup=kb.StartMenu
+        )
         user_history[user_id] = [kb.StartMenu]
 
 
@@ -145,26 +124,79 @@ async def cmd_start(message: Message):
 
 
 @router.message(F.text == LEXICON_COMMANDS["export_file"])
-async def export_file(message: Message, state: FSMContext):
-    tables = await initialize_databases()
-    internships_table: Internships = tables[1]
+async def export_file(message: Message):
+    await message.answer(
+        text=LEXICON["choose_file_type"],
+        reply_markup=kb.ExportFileMenu
+    )
 
-    data = await state.get_data()
-    filters = data.get("filters", {})
-    result = await internships_table.select_internship_data(**filters)
 
-    if not result:
-        await message.answer("⚠️ Нет данных для экспорта")
+def format_txt(data: list) -> str:
+    """Форматирует данные в текстовый формат"""
+    result = []
+    for item in data:
+        txt_entry = [
+            f"ID: {item['id']}",
+            f"Должность: {item['profession']}",
+            f"Компания: {item['company_name']}",
+            f"Зарплата: {item['salary_from']}-{item['salary_to']}",
+            f"Источник: {item['source_name']}",
+            f"Тип занятости: {item['employment_types']}",
+            f"Ссылка: {item['link']}",
+            f"Описание: {item['description']}",
+            "-" * 40
+        ]
+        result.append("\n".join(txt_entry))
+    return "\n\n".join(result)
+
+
+def write_json(data: list, file_path: str):
+    """Записывает данные в JSON файл"""
+    with open(file_path, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=4)
+
+
+def write_csv(data: list, file_path: str):
+    """Записывает данные в CSV файл"""
+    if not data:
         return
 
-    # Создаем временный JSON-файл
-    with tempfile.NamedTemporaryFile(
-        mode='w',
-        suffix='.json',
-        delete=False,
-        encoding='utf-8',
-        newline=''
-    ) as tmpfile:
+    fieldnames = data[0].keys()
+    with open(file_path, 'w', encoding='utf-8', newline='') as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(data)
+
+
+def write_txt(data: list, file_path: str):
+    """Записывает данные в TXT файл"""
+    with open(file_path, 'w', encoding='utf-8') as f:
+        f.write(format_txt(data))
+
+
+@router.message(F.text.in_({"json", "csv", "txt"}))
+async def process_export_file(message: Message, state: FSMContext):
+    await message.answer(text=LEXICON["processing"])
+
+    file_type = message.text
+    file_ext = f".{file_type}"
+    file_name = f"internships{file_ext}"
+
+    try:
+        # Получаем данные из состояния
+        data = await state.get_data()
+        filters = data.get("filters", {})
+
+        # Получаем данные из БД
+        tables = await initialize_databases()
+        internships_table: Internships = tables[1]
+        result = await internships_table.select_internship_data(**filters)
+
+        if not result:
+            await message.answer("⚠️ Нет данных для экспорта")
+            await state.clear()
+            return
+
         # Формируем структуру данных
         headers = [
             'id', 'title', 'profession', 'company_name', 'salary_from',
@@ -185,22 +217,42 @@ async def export_file(message: Message, state: FSMContext):
 
             json_data.append(item)
 
-        # Записываем JSON с красивым форматированием
-        json.dump(json_data, tmpfile, ensure_ascii=False, indent=4)
-        tmpfile_path = tmpfile.name
+        # Создаем временный файл нужного формата
+        with tempfile.NamedTemporaryFile(
+            mode='w',
+            suffix=file_ext,
+            delete=False,
+            encoding='utf-8',
+            newline='' if file_type == 'csv' else None
+        ) as tmpfile:
+            tmpfile_path = tmpfile.name
 
-    try:
+        # Записываем данные в файл в зависимости от формата
+        if file_type == "json":
+            write_json(json_data, tmpfile_path)
+        elif file_type == "csv":
+            write_csv(json_data, tmpfile_path)
+        elif file_type == "txt":
+            write_txt(json_data, tmpfile_path)
+
+        # Отправляем файл пользователю
         document = FSInputFile(
             path=tmpfile_path,
-            filename='internships.json'
+            filename=file_name
         )
+
         await message.answer_document(
             document=document,
-            caption='📊 Результаты поиска стажировок',
+            caption=f'📊 Результаты поиска стажировок ({file_type.upper()})',
             reply_markup=kb.StartMenu
         )
+
+    except Exception as e:
+        logger.error(f"Ошибка при экспорте файла: {e}")
+        await message.answer(f"⚠️ Ошибка при создании файла: {e}")
     finally:
-        if tmpfile_path and os.path.exists(tmpfile_path):
+        # Удаляем временный файл
+        if 'tmpfile_path' in locals() and os.path.exists(tmpfile_path):
             try:
                 os.remove(tmpfile_path)
             except Exception as e:
@@ -215,6 +267,6 @@ async def process_sites(message: Message):
 
     add_to_history(user_id, "filters_menu")
     await message.answer(
-        text="Выберите стажировки по доступным фильтрам.",
+        text=LEXICON["select_filters"],
         reply_markup=kb.FiltersMenu
     )

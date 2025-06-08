@@ -129,7 +129,7 @@ class HHParser:
         headers,
         retry_options
     ):
-        batch_size = 5
+        batch_size = 10
         delay = 1.2
 
         for i in range(0, len(vacancies), batch_size):

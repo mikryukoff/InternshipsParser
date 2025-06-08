@@ -3,7 +3,7 @@ from aiogram.types import Message
 
 from bot.lexicon import LEXICON, LEXICON_COMMANDS
 import bot.menu_kb as kb
-from bot.filters import AnswerFilter, SalaryFilter, ProfessionFilter
+from bot.filters import AnswerFilter, SalaryFilter, ProfessionFilter, EmploymentFilter
 from bot.menu_handlers import add_to_history, add_to_query, remove_from_query
 from common.database import initialize_databases, EmploymentTypes
 from bot.menu_kb import employment_types_keyboard, sites_keyboard
@@ -13,8 +13,9 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.storage.memory import MemoryStorage
 
 
-employment_types = []
+employment_types = set()
 professions = {}
+salary = {}
 
 # Инициализация роутера
 router: Router = Router()
@@ -98,7 +99,7 @@ async def process_profession_selection(message: Message, state: FSMContext):
 
     await add_to_query(state, profession=message.text)
     return message.answer(
-        text=f'Профессии "{message.text}", добавлены',
+        text=f'Профессии "{message.text}" добавлены',
         reply_markup=kb.FiltersMenu
     )
 
@@ -111,7 +112,9 @@ async def select_employment(message: Message, state: FSMContext):
     tables = await initialize_databases()
     employment_types_table: EmploymentTypes = tables[2]
 
-    employment_types = await employment_types_table.select_employment_types()
+    employment_types.update(
+        await employment_types_table.select_employment_types()
+    )
 
     # Получаем текущие данные из состояния
     data = await state.get_data()
@@ -124,10 +127,7 @@ async def select_employment(message: Message, state: FSMContext):
     )
 
 
-@router.message(lambda message: any(
-    t in message.text.replace("✅", "")
-    for t in employment_types
-))
+@router.message(EmploymentFilter(employment_types))
 async def process_employment_selection(message: Message, state: FSMContext):
     employment_type = message.text.replace("✅", "").strip()
 
@@ -140,14 +140,14 @@ async def process_employment_selection(message: Message, state: FSMContext):
         await remove_from_query(state, employment_type=employment_type)
         selected.remove(employment_type)
         await message.answer(
-            text=f"Тип занятости {employment_type} удалён",
+            text=f'Тип занятости "{employment_type}" удалён',
             reply_markup=employment_types_keyboard(employment_types, selected)
         )
     else:
         await add_to_query(state, employment_type=employment_type)
         selected.append(employment_type)
         await message.answer(
-            text=f"Тип занятости {employment_type} выбран",
+            text=f'Тип занятости "{employment_type}" выбран',
             reply_markup=employment_types_keyboard(employment_types, selected)
         )
 
@@ -156,6 +156,7 @@ async def process_employment_selection(message: Message, state: FSMContext):
 @router.message(F.text == LEXICON_COMMANDS["salary"])
 async def select_salary(message: Message):
     user_id = message.from_user.id
+    salary[user_id] = False
     add_to_history(user_id, "salary_menu")
     await message.answer(
         text=LEXICON["select_salary"],
@@ -165,15 +166,17 @@ async def select_salary(message: Message):
 
 @router.message(F.text == LEXICON_COMMANDS["with_salary"])
 async def process_salary_selection(message: Message):
+    user_id = message.from_user.id
+    salary[user_id] = True
     await message.answer(
         text=LEXICON["input_salary"]
     )
 
 
-@router.message(SalaryFilter())
+@router.message(SalaryFilter(salary))
 async def process_salary_input(message: Message, state: FSMContext):
-    global salary
-    salary = False
+    user_id = message.from_user.id
+    salary[user_id] = False
 
     salary_from, salary_to = map(str.strip, message.text.split("-"))
 
@@ -187,9 +190,24 @@ async def process_salary_input(message: Message, state: FSMContext):
 
 
 # Обработка выбора фильтров
-@router.message(AnswerFilter())
-async def filter_selected(message: Message):
+@router.message(F.text == LEXICON_COMMANDS["clear_filters"])
+async def clear_filters(message: Message, state: FSMContext):
+    await state.clear()
     await message.answer(
-        text=LEXICON["selected_option"].format(message.text),
+        text=LEXICON["clear_filters"],
+        reply_markup=kb.FiltersMenu
+    )
+
+
+@router.message(F.text == LEXICON_COMMANDS["keywords"])
+async def select_keywords(message: Message):
+    await message.answer(text=LEXICON["input_keywords"])
+
+
+@router.message()
+async def process_keywords_input(message: Message, state: FSMContext):
+    await add_to_query(state, description=message.text)
+    return message.answer(
+        text=f'Ключевые слова "{message.text}" добавлены',
         reply_markup=kb.FiltersMenu
     )

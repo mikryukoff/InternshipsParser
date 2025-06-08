@@ -21,9 +21,12 @@ class AnswerFilter(BaseFilter):
 
 class SalaryFilter(BaseFilter):
     "Класс, описывающий фильтр для отслеживания введенного диапазона зарплаты"
+    def __init__(self, salary: dict):
+        self.salary = salary
+
     async def __call__(self, message: Message) -> bool:
         match = re.match(r'^\s*(\d+)\s*[-–—]\s*(\d+)\s*$', message.text)
-        return bool(match)
+        return bool(match) and self.salary.get(message.from_user.id, False)
 
 
 class ProfessionFilter(BaseFilter):
@@ -33,3 +36,14 @@ class ProfessionFilter(BaseFilter):
 
     async def __call__(self, message: Message) -> bool:
         return self.professions.get(message.from_user.id, False)
+
+
+class EmploymentFilter(BaseFilter):
+    "Класс, описывающий фильтр для отслеживания меню ввода типов занятости"
+    def __init__(self, employment_types: dict):
+        self.employment_types = employment_types
+
+    async def __call__(self, message: Message) -> bool:
+        return any(
+            t == message.text.replace("✅", "") for t in self.employment_types
+        )
